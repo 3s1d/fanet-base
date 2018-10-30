@@ -36,14 +36,27 @@ void fanet_task(void const * argument);
 #define	FANET_TYPE1OR7_TAU_MS			5000
 #define FANET_TYPE2_TAU_MS			240000		//4min
 
+#define FANET_RC_ACK				0
+#define FANET_RC_POSITION			2
+#define FANET_RC_REPLAY_LOWER			3
+#define FANET_RC_REPLAY_UPPER			15
 
 #define FLASH_PAGESIZE				2048
 #define FANET_KEYADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 2)
 #define FANET_KEYADDR_BASE			(FLASH_BASE + FANET_KEYADDR_PAGE*FLASH_PAGESIZE)
-#define FANET_POSADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 4)
+#define FANET_POSADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 3)
 #define FANET_POSADDR_BASE			(FLASH_BASE + FANET_POSADDR_PAGE*FLASH_PAGESIZE)
+#define FANET_RPADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 4)
+#define FANET_RPADDR_BASE			(FLASH_BASE + FANET_RPADDR_PAGE*FLASH_PAGESIZE)
 
 #include "fmac.h"
+
+typedef struct
+{
+	uint8_t type;
+	uint8_t payloadLength;
+	uint8_t payload[150];
+} rpf_t;					//note: size has to divide'able by 8 AND sizeof(rpf_t) <= FLASH_PAGESIZE/13
 
 
 class Fanet : public Fapp
@@ -72,18 +85,24 @@ private:
 	char _key[16] = { '\0' };
 
 	/* position, all in degree */
-	Coordinate2D _position = Coordinate2D();
+	Coordinate3D _position = Coordinate3D();
 	float _heading = 0.0f;
 
+	/* remote */
 	void loadKey(void);
 	void loadPosition(void);
+	void loadReplayFeatures(void);
+	void writeReplayFeatures(void);
 
+	bool rcPosition(uint8_t *payload, uint16_t payload_length);
+	bool decodeRemoteConfig(FanetFrame *frm);
 
 public:
 	bool promiscuous = false;
 	const char *key = _key;
-	const Coordinate2D &position;
+	const Coordinate3D &position;
 	const float &heading;
+	rpf_t replayFeature[13];				//will be initialized upon constructor
 
 	Fanet();
 
@@ -111,8 +130,9 @@ public:
 	bool ackResult(const FanetMacAddr &addr, FanetAckRes_t &result) {result = ackRes; return addr == ackAddr; }
 
 	/* remote config */
-	void writeKey(char *newKey);
-	void writePosition(Coordinate2D newPos, float newHeading);
+	bool writeKey(char *newKey);
+	void writePosition(Coordinate3D newPos, float newHeading);
+	bool writeReplayFeature(uint16_t num, uint8_t *payload, uint16_t len);
 };
 
 extern Fanet fanet;

@@ -10,6 +10,7 @@
 #include <time.h>
 #include <cmath>
 
+#include "common.h"
 #include "jump.h"
 #include "serial.h"
 #include "usart.h"
@@ -302,12 +303,12 @@ void Serial_Interface::fanet_remote_location(char *ch_str)
 
 	if(strlen(ch_str) == 0)
 	{
-		if(fanet.position != Coordinate2D())
+		if(fanet.position != Coordinate3D())
 		{
 			/* report location */
 			char buf[64];
-			snprintf(buf, sizeof(buf), "%s%c %.5f,%.5f,%.1f\n", REMOTE_CMD_START, CMD_REMOTELOCATION,
-					fanet.position.latitude, fanet.position.longitude, fanet.heading);
+			snprintf(buf, sizeof(buf), "%s%c %.5f,%.5f,%.f,%.1f\n", REMOTE_CMD_START, CMD_REMOTELOCATION,
+					fanet.position.latitude, fanet.position.longitude, fanet.position.altitude, fanet.heading);
 			print(buf);
 		}
 		else
@@ -323,19 +324,93 @@ void Serial_Interface::fanet_remote_location(char *ch_str)
 	p = strchr(p, SEPARATOR);
 	if(p == nullptr)
 	{
-		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		print_line(FR_REPLYE_CMDTOOSHORT);
 		return;
 	}
 	const float lon = atof(++p);
 	p = strchr(p, SEPARATOR);
 	if(p == nullptr)
 	{
-		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		print_line(FR_REPLYE_CMDTOOSHORT);
+		return;
+	}
+	const float alt = atof(++p);
+	p = strchr(p, SEPARATOR);
+	if(p == nullptr)
+	{
+		print_line(FR_REPLYE_CMDTOOSHORT);
 		return;
 	}
 	const float heading = atof(++p);
-	fanet.writePosition(Coordinate2D(lat, lon), heading);
+	fanet.writePosition(Coordinate3D(lat, lon, alt), heading);
 	print_line(FN_REPLY_OK);
+}
+
+void Serial_Interface::fanet_remote_replay(char *ch_str)
+{
+	/* remove \r\n and any spaces*/
+	char *ptr = strchr(ch_str, '\r');
+	if(ptr == nullptr)
+		ptr = strchr(ch_str, '\n');
+	if(ptr != nullptr)
+		*ptr = '\0';
+	while(*ch_str == ' ')
+		ch_str++;
+
+	if(strlen(ch_str) == 0)
+	{
+		print_line(FR_REPLYE_CMDTOOSHORT);
+		return;
+	}
+
+	/* get mandatory feature number */
+	char *p = (char *)ch_str;
+	const uint16_t num = strtol(p,  NULL,  16);
+	if(num >= NELEM(fanet.replayFeature))
+	{
+		print_line(FR_REPLYE_OUTOFBOUND);
+		return;
+	}
+
+	p = strchr(p, SEPARATOR);
+	if(p == nullptr)
+	{
+		/* print empty */
+		if(fanet.replayFeature[num].type == 0xFF)
+		{
+			print_line(FR_REPLYM_EMPTY);
+			return;
+		}
+
+		/* print feature */
+		char buf[4];
+		snprintf(buf, sizeof(buf), "%02X", fanet.replayFeature[num].type);
+		print(buf);
+		for(uint16_t i=0; i<fanet.replayFeature[num].payloadLength; i++)
+		{
+			snprintf(buf, sizeof(buf), "%02X", fanet.replayFeature[num].payload[i]);
+			print(buf);
+		}
+		print("\n");
+		print_line(FR_REPLY_OK);
+		return;
+	}
+	p++;
+
+	/* create new feature */
+	uint8_t buf[sizeof(rpf_t) + 1];
+	for(uint16_t i=0; i<std::min(strlen(p)/2, sizeof(buf)); i++)
+	{
+		char sstr[3] = { p[i*2], p[i*2+1], '\0' };
+		if(strlen(sstr) != 2)
+		{
+			print_line(FR_REPLYE_ALIGN);
+			return;
+		}
+		buf[i] = strtol(sstr,  NULL,  16);
+	}
+	fanet.writeReplayFeature(num, buf, strlen(p)/2);
+	print_line(FR_REPLY_OK);
 }
 
 /* mux string */
@@ -348,6 +423,9 @@ void Serial_Interface::fanet_remote_eval(char *str)
 		break;
 	case CMD_REMOTELOCATION:
 		fanet_remote_location(&str[strlen(REMOTE_CMD_START) + 1]);
+		break;
+	case CMD_REMOTEREPLAY:
+		fanet_remote_replay(&str[strlen(REMOTE_CMD_START) + 1]);
 		break;
 	default:
 		print_line(FN_REPLYE_FN_UNKNOWN_CMD);

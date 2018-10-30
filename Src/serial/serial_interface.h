@@ -41,6 +41,7 @@ void wire_task(void const * argument);
 /* Remote Replies */
 #define REMOTE_CMD_OK			REMOTE_CMD_START "R OK"
 #define REMOTE_CMD_ERROR		REMOTE_CMD_START "R ERR"
+#define REMOTE_CMD_MSG			REMOTE_CMD_START "R MSG"
 
 /* Dongle Replies */
 #define DONGLE_CMD_OK			DONGLE_CMD_START "R OK"
@@ -69,6 +70,7 @@ void wire_task(void const * argument);
 /* Remote */
 #define CMD_REMOTEKEY			'K'
 #define CMD_REMOTELOCATION		'L'
+#define CMD_REMOTEREPLAY		'R'
 
 /* Dongle */
 #define CMD_VERSION			'V'
@@ -92,8 +94,12 @@ void wire_task(void const * argument);
 #define FN_REPLYE_ADDR_GIVEN		FANET_CMD_ERROR, 15, "address already set"
 #define FN_REPLYE_CMD_TOO_SHORT		FANET_CMD_ERROR, 30, "too short"
 #define FR_REPLY_OK			REMOTE_CMD_OK, 	 0,  ""
-#define FR_REPLYE_KEYNOTSET		FANET_CMD_ERROR, 35, "key not set"
-#define FR_REPLYE_LOCATIONNOTSET	FANET_CMD_ERROR, 36, "location not set"
+#define FR_REPLYE_KEYNOTSET		REMOTE_CMD_ERROR,35, "key not set"
+#define FR_REPLYE_LOCATIONNOTSET	REMOTE_CMD_ERROR,36, "location not set"
+#define FR_REPLYE_CMDTOOSHORT		REMOTE_CMD_ERROR,37, "too short"
+#define FR_REPLYE_OUTOFBOUND		REMOTE_CMD_ERROR,38, "out of bound"
+#define FR_REPLYE_ALIGN			REMOTE_CMD_ERROR,39, "align"
+#define FR_REPLYM_EMPTY			REMOTE_CMD_MSG,  40, "empty"
 #define DN_REPLY_OK			DONGLE_CMD_OK, 	 0,  ""
 #define DN_REPLYE_DONGLE_UNKNOWN_CMD	DONGLE_CMD_ERROR,60, "unknown DG command"
 #define DN_REPLYE_JUMP			DONGLE_CMD_ERROR,61, "unknown jump point"
@@ -116,7 +122,8 @@ void wire_task(void const * argument);
  * Promiscuous:		#FNP promiscuous(0..1)
  *
  * Remote Key:		#FRK key
- * Location:		#FRL latitude,longitude,heading								note: in degree
+ * Location:		#FRL latitude,longitude,altitude,heading						note: in degree
+ * Replay Feature:	#FRR num(hex),payload									note: #FRR num,FF -> clean
  *
  * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload
  *
@@ -147,6 +154,7 @@ private:
 	void fanet_remote_eval(char *str);
 	void fanet_remote_key(char *ch_str);
 	void fanet_remote_location(char *ch_str);
+	void fanet_remote_replay(char *ch_str);
 
 	/* Dongle Commands */
 	void dongle_eval(char *str);
