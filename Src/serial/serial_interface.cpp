@@ -31,11 +31,9 @@ void wire_task(void const * argument)
 	while(1)
 	{
 		/* Get the message from the queue */
-		osMessageGet(serialInt.myserial->queueID, 1000);		//->queueID not nullptr by definition
+		osMessageGet(serialInt.myserial->queueID, 1000);		//-> queueID not nullptr by definition
 		serialInt.handle_rx();
 	}
-
-
 }
 
 /*
@@ -208,6 +206,31 @@ void Serial_Interface::fanet_cmd_neighbor(char *ch_str)
 	print_line(FN_REPLY_OK);
 }
 
+void Serial_Interface::fanet_cmd_promiscuous(char *ch_str)
+{
+	/* remove \r\n and any spaces*/
+	char *ptr = strchr(ch_str, '\r');
+	if(ptr == NULL)
+		ptr = strchr(ch_str, '\n');
+	if(ptr != NULL)
+		*ptr = '\0';
+	while(*ch_str == ' ')
+		ch_str++;
+
+	if(strlen(ch_str) == 0)
+	{
+		/* report armed state */
+		char buf[64];
+		snprintf(buf, sizeof(buf), "%s%c %X\n", FANET_CMD_START, CMD_PROMISCUOUS, fanet.promiscuous);
+		print(buf);
+		return;
+	}
+
+	/* set status */
+	fanet.promiscuous = !!atoi(ch_str);
+	print_line(FN_REPLY_OK);
+}
+
 /* mux string */
 void Serial_Interface::fanet_eval(char *str)
 {
@@ -221,6 +244,9 @@ void Serial_Interface::fanet_eval(char *str)
 		break;
 	case CMD_NEIGHBOR:
 		fanet_cmd_neighbor(&str[strlen(FANET_CMD_START) + 1]);
+		break;
+	case CMD_PROMISCUOUS:
+		fanet_cmd_promiscuous(&str[strlen(FANET_CMD_START) + 1]);
 		break;
 	default:
 		print_line(FN_REPLYE_FN_UNKNOWN_CMD);
@@ -268,11 +294,6 @@ void Serial_Interface::dongle_cmd_power(char *ch_str)
 		print(buf);
 		return;
 	}
-
-#ifdef FLARM
-	if(!atoi(ch_str))
-		casw.do_flarm = false;
-#endif
 
 	/* set status */
 	if(sx1272_setArmed(!!atoi(ch_str)))

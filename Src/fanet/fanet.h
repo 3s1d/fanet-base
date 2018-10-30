@@ -64,6 +64,7 @@ private:
 	FanetAckRes_t ackRes = WAIT;
 
 public:
+	bool promiscuous = false;
 
 	Fanet() : Fapp() { }
 

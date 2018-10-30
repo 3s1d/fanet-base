@@ -258,6 +258,9 @@ FanetFrame *Fanet::getFrame(void)
 
 void Fanet::handleAcked(bool ack, FanetMacAddr &addr)
 {
+	if(promiscuous)
+		serialInt.handle_acked(ack, addr);
+
 	ackRes = ack ? ACK : NACK;
 	ackAddr = addr;							//note: address has to be set as second to prevent race conditions!
 }
@@ -265,6 +268,9 @@ void Fanet::handleAcked(bool ack, FanetMacAddr &addr)
 
 void Fanet::handleFrame(FanetFrame *frm)
 {
+	if(promiscuous)
+		serialInt.handle_frame(frm);
+
 	osMutexWait(neighborMutex, osWaitForever);
 
 	/* find neighbor */

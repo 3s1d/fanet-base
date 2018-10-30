@@ -66,6 +66,8 @@ void wire_task(void const * argument);
 #define CMD_CONFIG			'C'
 #define CMD_MODE			'M'
 #define CMD_NEIGHBOR			'N'
+#define CMD_PROMISCUOUS			'P'
+
 
 #define CMD_RX_FRAME			"F"
 
@@ -119,8 +121,8 @@ void wire_task(void const * argument);
  * Transmit: 		#FNT type,dest_manufacturer,dest_id,forward,ack_required,length,length*2hex[,signature]	note: all values in hex
  *
  * Address: 		#FNA manufacturer(hex),id(hex)								note: w/o address is returned
- * Neighbors		#FNN											note: one neighbor per line
- *
+ * Neighbors:		#FNN											note: one neighbor per line
+ * Promiscuous:		#FNP promiscuous(0..1)
  *
  * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload
  *
@@ -146,6 +148,7 @@ private:
 	void fanet_cmd_addr(char *ch_str);
 	void fanet_cmd_transmit(char *ch_str);
 	void fanet_cmd_neighbor(char *ch_str);
+	void fanet_cmd_promiscuous(char *ch_str);
 
 	/* Dongle Commands */
 	void dongle_eval(char *str);
