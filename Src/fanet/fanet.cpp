@@ -291,4 +291,53 @@ void Fanet::handleFrame(FanetFrame *frm)
 	osMutexRelease(neighborMutex);
 }
 
+/*
+ * remote configuration
+ */
+
+void Fanet::writeKey(char *newKey)
+{
+	/* copy key */
+	memset(_key, 0, sizeof(_key));
+	snprintf(_key, sizeof(_key), "%s", newKey);
+
+	/* determine page */
+	FLASH_EraseInitTypeDef eraseInit = {0};
+	eraseInit.TypeErase = FLASH_TYPEERASE_PAGES;
+	eraseInit.Banks = FLASH_BANK_1;
+	eraseInit.Page = FANET_KEYADDR_PAGE;
+	eraseInit.NbPages = 1;
+
+	/* erase */
+	uint32_t sectorError = 0;
+	HAL_FLASH_Unlock();
+	HAL_FLASHEx_Erase(&eraseInit, &sectorError);
+	HAL_FLASH_Lock();
+
+	/* write */
+	HAL_FLASH_Unlock();
+	for(unsigned int i=0; i<(sizeof(_key)+7)/8; i++)
+	{
+		/* build config */
+		uint64_t addr_container = _key[i*8] | _key[i*8+1]<<8 | _key[i*8+2]<<16  | _key[i*8+3]<<24 |
+				((uint64_t)_key[i*8+4])<<32 | ((uint64_t)_key[i*8+5])<<40  |
+				((uint64_t)_key[i*8+6])<<48 | ((uint64_t)_key[i*8+7])<<56;
+
+		HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_KEYADDR_BASE + i*8, addr_container);
+	}
+	HAL_FLASH_Lock();
+}
+
+void Fanet::loadKey(void)
+{
+	if(((char *)(__IO uint64_t*)FANET_KEYADDR_BASE)[0] != 0xFF)
+		snprintf(_key, sizeof(_key), "%s", (char *)(__IO uint64_t*)FANET_KEYADDR_BASE);
+}
+
+Fanet::Fanet() : Fapp()
+{
+	/* read condifuration */
+	loadKey();
+}
+
 Fanet fanet = Fanet();

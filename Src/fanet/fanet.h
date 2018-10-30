@@ -36,6 +36,11 @@ void fanet_task(void const * argument);
 #define	FANET_TYPE1OR7_TAU_MS			5000
 #define FANET_TYPE2_TAU_MS			240000		//4min
 
+
+#define FLASH_PAGESIZE				2048
+#define FANET_KEYADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 2)
+#define FANET_KEYADDR_BASE			(FLASH_BASE + FANET_KEYADDR_PAGE*FLASH_PAGESIZE)
+
 #include "fmac.h"
 
 
@@ -62,11 +67,13 @@ private:
 	/* ACK buffer */
 	FanetMacAddr ackAddr;
 	FanetAckRes_t ackRes = WAIT;
+	char _key[16] = { '\0' };
 
 public:
 	bool promiscuous = false;
+	const char *key = _key;
 
-	Fanet() : Fapp() { }
+	Fanet();
 
 	/* device -> air */
 	bool isBroadcastReady(void);
@@ -90,6 +97,10 @@ public:
 	/* ACK */
 	void ackReset(void) {ackAddr = FanetMacAddr(); ackRes = WAIT; }
 	bool ackResult(const FanetMacAddr &addr, FanetAckRes_t &result) {result = ackRes; return addr == ackAddr; }
+
+	/* remote config */
+	void writeKey(char *newKey);
+	void loadKey(void);
 };
 
 extern Fanet fanet;

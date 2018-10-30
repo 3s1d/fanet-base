@@ -67,22 +67,15 @@ void wire_task(void const * argument);
 #define CMD_MODE			'M'
 #define CMD_NEIGHBOR			'N'
 #define CMD_PROMISCUOUS			'P'
-
+#define CMD_REMOTEKEY			'K'
 
 #define CMD_RX_FRAME			"F"
-
 
 /* Dongle */
 #define CMD_VERSION			'V'
 #define CMD_POWER			'P'
 #define CMD_REGION			'L'
 #define CMD_BOOTLOADER			'J'
-
-/* FLARM */
-#ifdef FLARM
-#define CMD_EXPIRES			'X'
-#endif
-
 
 #define SERIAL_debug_mode		0
 
@@ -98,6 +91,7 @@ void wire_task(void const * argument);
 #define FN_REPLYM_PWRDOWN		FANET_CMD_MSG,	 13, "power down"
 #define FN_REPLYE_TX_BUFF_FULL		FANET_CMD_ERROR, 14, "tx buffer full"
 #define FN_REPLYE_ADDR_GIVEN		FANET_CMD_ERROR, 15, "address already set"
+#define FN_REPLYE_KEYNOTSET		FANET_CMD_ERROR, 16, "key not set"
 #define FN_REPLYE_CMD_TOO_SHORT		FANET_CMD_ERROR, 30, "too short"
 #define FN_REPLYE_BT_FAILED		BT_CMD_ERROR,    51, "bt failed"
 #define FN_REPLYE_BT_UNKNOWN_CMD	BT_CMD_ERROR,    52, "unknown BT command"
@@ -123,6 +117,7 @@ void wire_task(void const * argument);
  * Address: 		#FNA manufacturer(hex),id(hex)								note: w/o address is returned
  * Neighbors:		#FNN											note: one neighbor per line
  * Promiscuous:		#FNP promiscuous(0..1)
+ * Remote Key:		#FNK key
  *
  * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload
  *
@@ -149,6 +144,7 @@ private:
 	void fanet_cmd_transmit(char *ch_str);
 	void fanet_cmd_neighbor(char *ch_str);
 	void fanet_cmd_promiscuous(char *ch_str);
+	void fanet_cmd_key(char *ch_str);
 
 	/* Dongle Commands */
 	void dongle_eval(char *str);

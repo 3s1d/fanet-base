@@ -50,9 +50,9 @@ void Serial_Interface::fanet_cmd_addr(char *ch_str)
 #endif
 	/* remove \r\n and any spaces*/
 	char *ptr = strchr(ch_str, '\r');
-	if(ptr == NULL)
+	if(ptr == nullptr)
 		ptr = strchr(ch_str, '\n');
-	if(ptr != NULL)
+	if(ptr != nullptr)
 		*ptr = '\0';
 	while(*ch_str == ' ')
 		ch_str++;
@@ -210,9 +210,9 @@ void Serial_Interface::fanet_cmd_promiscuous(char *ch_str)
 {
 	/* remove \r\n and any spaces*/
 	char *ptr = strchr(ch_str, '\r');
-	if(ptr == NULL)
+	if(ptr == nullptr)
 		ptr = strchr(ch_str, '\n');
-	if(ptr != NULL)
+	if(ptr != nullptr)
 		*ptr = '\0';
 	while(*ch_str == ' ')
 		ch_str++;
@@ -228,6 +228,38 @@ void Serial_Interface::fanet_cmd_promiscuous(char *ch_str)
 
 	/* set status */
 	fanet.promiscuous = !!atoi(ch_str);
+	print_line(FN_REPLY_OK);
+}
+
+void Serial_Interface::fanet_cmd_key(char *ch_str)
+{
+	/* remove \r\n and any spaces*/
+	char *ptr = strchr(ch_str, '\r');
+	if(ptr == nullptr)
+		ptr = strchr(ch_str, '\n');
+	if(ptr != nullptr)
+		*ptr = '\0';
+	while(*ch_str == ' ')
+		ch_str++;
+
+	if(strlen(ch_str) == 0)
+	{
+		if(strlen(fanet.key))
+		{
+			/* report armed state */
+			char buf[64];
+			snprintf(buf, sizeof(buf), "%s%c %s\n", FANET_CMD_START, CMD_REMOTEKEY, fanet.key);
+			print(buf);
+		}
+		else
+		{
+			print_line(FN_REPLYE_KEYNOTSET);
+		}
+		return;
+	}
+
+	/* set status */
+	fanet.writeKey(ch_str);
 	print_line(FN_REPLY_OK);
 }
 
@@ -247,6 +279,9 @@ void Serial_Interface::fanet_eval(char *str)
 		break;
 	case CMD_PROMISCUOUS:
 		fanet_cmd_promiscuous(&str[strlen(FANET_CMD_START) + 1]);
+		break;
+	case CMD_REMOTEKEY:
+		fanet_cmd_key(&str[strlen(FANET_CMD_START) + 1]);
 		break;
 	default:
 		print_line(FN_REPLYE_FN_UNKNOWN_CMD);
@@ -279,9 +314,9 @@ void Serial_Interface::dongle_cmd_power(char *ch_str)
 {
 	/* remove \r\n and any spaces*/
 	char *ptr = strchr(ch_str, '\r');
-	if(ptr == NULL)
+	if(ptr == nullptr)
 		ptr = strchr(ch_str, '\n');
-	if(ptr != NULL)
+	if(ptr != nullptr)
 		*ptr = '\0';
 	while(*ch_str == ' ')
 		ch_str++;
