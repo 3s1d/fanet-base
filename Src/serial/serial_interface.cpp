@@ -302,7 +302,7 @@ void Serial_Interface::fanet_remote_location(char *ch_str)
 
 	if(strlen(ch_str) == 0)
 	{
-		if(fanet.position == Coordinate2D())
+		if(fanet.position != Coordinate2D())
 		{
 			/* report location */
 			char buf[64];
@@ -319,27 +319,21 @@ void Serial_Interface::fanet_remote_location(char *ch_str)
 
 	/* set position / heading */
 	char *p = (char *)ch_str;
-	float lat = atof(p);
+	const float lat = atof(p);
 	p = strchr(p, SEPARATOR);
 	if(p == nullptr)
 	{
 		print_line(FN_REPLYE_CMD_TOO_SHORT);
 		return;
 	}
-	float lon = atof(++p);
+	const float lon = atof(++p);
 	p = strchr(p, SEPARATOR);
 	if(p == nullptr)
 	{
 		print_line(FN_REPLYE_CMD_TOO_SHORT);
 		return;
 	}
-	float heading = atof(++p);
-	p = strchr(p, SEPARATOR);
-	if(p == nullptr)
-	{
-		print_line(FN_REPLYE_CMD_TOO_SHORT);
-		return;
-	}
+	const float heading = atof(++p);
 	fanet.writePosition(Coordinate2D(lat, lon), heading);
 	print_line(FN_REPLY_OK);
 }
@@ -478,22 +472,23 @@ void Serial_Interface::handle_rx(void)
 
 	char line[256];
 	bool cmd_rxd = serial::poll(myserial, line, sizeof(line));
+	if (cmd_rxd == false)
+		return;
 
 	/* Process message */
-	if (cmd_rxd)
-	{
 #if defined(DEBUG) && (SERIAL_debug_mode > 1)
-		printf("### rx:'%s'\n", line);
+	printf("### rx:'%s'\n", line);
 #endif
-		if(!strncmp(line, FANET_CMD_START, 3))
-			fanet_cmd_eval(line);
-		else if(!strncmp(line, DONGLE_CMD_START, 3))
-			dongle_eval(line);
-		else
-			print_line(FN_REPLYE_UNKNOWN_CMD);
+	if(!strncmp(line, FANET_CMD_START, 3))
+		fanet_cmd_eval(line);
+	else if(!strncmp(line, REMOTE_CMD_START, 3))
+		fanet_remote_eval(line);
+	else if(!strncmp(line, DONGLE_CMD_START, 3))
+		dongle_eval(line);
+	else
+		print_line(FN_REPLYE_UNKNOWN_CMD);
 
-		last_activity = HAL_GetTick();
-	}
+	last_activity = HAL_GetTick();
 }
 
 void Serial_Interface::begin(serial_t *serial)
