@@ -103,6 +103,11 @@ bool operator==(const Coordinate3D& lhs, const Coordinate3D& rhs)
 	return lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude && lhs.altitude == rhs.altitude;
 }
 
+bool operator==(const Coordinate2D& lhs, const Coordinate2D& rhs)
+{
+	return !(lhs!=rhs);
+}
+
 Coordinate2D operator-(const Coordinate2D& lhs, const Coordinate2D& rhs)
 {
 	return Coordinate2D(lhs.latitude-rhs.latitude, lhs.longitude-rhs.longitude);

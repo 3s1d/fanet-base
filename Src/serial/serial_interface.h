@@ -26,11 +26,8 @@ void wire_task(void const * argument);
 
 
 #define FANET_CMD_START			"#FN"
-#define BT_CMD_START			"#BT"
+#define REMOTE_CMD_START		"#FR"
 #define DONGLE_CMD_START		"#DG"
-#ifdef FLARM
-#define FLARM_CMD_START			"#FA"
-#endif
 #define SEPARATOR			','
 
 
@@ -41,10 +38,9 @@ void wire_task(void const * argument);
 #define FANET_CMD_ACK			FANET_CMD_START "R ACK"
 #define FANET_CMD_NACK			FANET_CMD_START "R NACK"
 
-/* Bluetooth Replies */
-#define BT_CMD_OK			BT_CMD_START "R OK"
-#define BT_CMD_WARN			BT_CMD_START "R WRN"
-#define BT_CMD_ERROR			BT_CMD_START "R ERR"
+/* Remote Replies */
+#define REMOTE_CMD_OK			REMOTE_CMD_START "R OK"
+#define REMOTE_CMD_ERROR		REMOTE_CMD_START "R ERR"
 
 /* Dongle Replies */
 #define DONGLE_CMD_OK			DONGLE_CMD_START "R OK"
@@ -67,9 +63,12 @@ void wire_task(void const * argument);
 #define CMD_MODE			'M'
 #define CMD_NEIGHBOR			'N'
 #define CMD_PROMISCUOUS			'P'
-#define CMD_REMOTEKEY			'K'
 
 #define CMD_RX_FRAME			"F"
+
+/* Remote */
+#define CMD_REMOTEKEY			'K'
+#define CMD_REMOTELOCATION		'L'
 
 /* Dongle */
 #define CMD_VERSION			'V'
@@ -91,12 +90,10 @@ void wire_task(void const * argument);
 #define FN_REPLYM_PWRDOWN		FANET_CMD_MSG,	 13, "power down"
 #define FN_REPLYE_TX_BUFF_FULL		FANET_CMD_ERROR, 14, "tx buffer full"
 #define FN_REPLYE_ADDR_GIVEN		FANET_CMD_ERROR, 15, "address already set"
-#define FN_REPLYE_KEYNOTSET		FANET_CMD_ERROR, 16, "key not set"
 #define FN_REPLYE_CMD_TOO_SHORT		FANET_CMD_ERROR, 30, "too short"
-#define FN_REPLYE_BT_FAILED		BT_CMD_ERROR,    51, "bt failed"
-#define FN_REPLYE_BT_UNKNOWN_CMD	BT_CMD_ERROR,    52, "unknown BT command"
-#define FN_REPLYE_BT_NAME_TOO_SHORT	BT_CMD_ERROR,    53, "name too short"
-#define FN_REPLYW_BT_RECONF_ID		BT_CMD_WARN,     55, "reconfiguring id"
+#define FR_REPLY_OK			REMOTE_CMD_OK, 	 0,  ""
+#define FR_REPLYE_KEYNOTSET		FANET_CMD_ERROR, 35, "key not set"
+#define FR_REPLYE_LOCATIONNOTSET	FANET_CMD_ERROR, 36, "location not set"
 #define DN_REPLY_OK			DONGLE_CMD_OK, 	 0,  ""
 #define DN_REPLYE_DONGLE_UNKNOWN_CMD	DONGLE_CMD_ERROR,60, "unknown DG command"
 #define DN_REPLYE_JUMP			DONGLE_CMD_ERROR,61, "unknown jump point"
@@ -117,7 +114,9 @@ void wire_task(void const * argument);
  * Address: 		#FNA manufacturer(hex),id(hex)								note: w/o address is returned
  * Neighbors:		#FNN											note: one neighbor per line
  * Promiscuous:		#FNP promiscuous(0..1)
- * Remote Key:		#FNK key
+ *
+ * Remote Key:		#FRK key
+ * Location:		#FRL latitude,longitude,heading								note: in degree
  *
  * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload
  *
@@ -139,12 +138,15 @@ private:
 	uint32_t last_activity = 0;
 
 	/* Normal Commands */
-	void fanet_eval(char *str);
+	void fanet_cmd_eval(char *str);
 	void fanet_cmd_addr(char *ch_str);
 	void fanet_cmd_transmit(char *ch_str);
 	void fanet_cmd_neighbor(char *ch_str);
 	void fanet_cmd_promiscuous(char *ch_str);
-	void fanet_cmd_key(char *ch_str);
+
+	void fanet_remote_eval(char *str);
+	void fanet_remote_key(char *ch_str);
+	void fanet_remote_location(char *ch_str);
 
 	/* Dongle Commands */
 	void dongle_eval(char *str);

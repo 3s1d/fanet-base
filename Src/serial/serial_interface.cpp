@@ -231,7 +231,33 @@ void Serial_Interface::fanet_cmd_promiscuous(char *ch_str)
 	print_line(FN_REPLY_OK);
 }
 
-void Serial_Interface::fanet_cmd_key(char *ch_str)
+/* mux string */
+void Serial_Interface::fanet_cmd_eval(char *str)
+{
+	switch(str[strlen(FANET_CMD_START)])
+	{
+	case CMD_TRANSMIT:
+		fanet_cmd_transmit(&str[strlen(FANET_CMD_START) + 1]);
+		break;
+	case CMD_ADDR:
+		fanet_cmd_addr(&str[strlen(FANET_CMD_START) + 1]);
+		break;
+	case CMD_NEIGHBOR:
+		fanet_cmd_neighbor(&str[strlen(FANET_CMD_START) + 1]);
+		break;
+	case CMD_PROMISCUOUS:
+		fanet_cmd_promiscuous(&str[strlen(FANET_CMD_START) + 1]);
+		break;
+	default:
+		print_line(FN_REPLYE_FN_UNKNOWN_CMD);
+	}
+}
+
+/*
+ * Remote
+ */
+
+void Serial_Interface::fanet_remote_key(char *ch_str)
 {
 	/* remove \r\n and any spaces*/
 	char *ptr = strchr(ch_str, '\r');
@@ -248,12 +274,12 @@ void Serial_Interface::fanet_cmd_key(char *ch_str)
 		{
 			/* report armed state */
 			char buf[64];
-			snprintf(buf, sizeof(buf), "%s%c %s\n", FANET_CMD_START, CMD_REMOTEKEY, fanet.key);
+			snprintf(buf, sizeof(buf), "%s%c %s\n", REMOTE_CMD_START, CMD_REMOTEKEY, fanet.key);
 			print(buf);
 		}
 		else
 		{
-			print_line(FN_REPLYE_KEYNOTSET);
+			print_line(FR_REPLYE_KEYNOTSET);
 		}
 		return;
 	}
@@ -263,25 +289,71 @@ void Serial_Interface::fanet_cmd_key(char *ch_str)
 	print_line(FN_REPLY_OK);
 }
 
+void Serial_Interface::fanet_remote_location(char *ch_str)
+{
+	/* remove \r\n and any spaces*/
+	char *ptr = strchr(ch_str, '\r');
+	if(ptr == nullptr)
+		ptr = strchr(ch_str, '\n');
+	if(ptr != nullptr)
+		*ptr = '\0';
+	while(*ch_str == ' ')
+		ch_str++;
+
+	if(strlen(ch_str) == 0)
+	{
+		if(fanet.position == Coordinate2D())
+		{
+			/* report location */
+			char buf[64];
+			snprintf(buf, sizeof(buf), "%s%c %.5f,%.5f,%.1f\n", REMOTE_CMD_START, CMD_REMOTELOCATION,
+					fanet.position.latitude, fanet.position.longitude, fanet.heading);
+			print(buf);
+		}
+		else
+		{
+			print_line(FR_REPLYE_LOCATIONNOTSET);
+		}
+		return;
+	}
+
+	/* set position / heading */
+	char *p = (char *)ch_str;
+	float lat = atof(p);
+	p = strchr(p, SEPARATOR);
+	if(p == nullptr)
+	{
+		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		return;
+	}
+	float lon = atof(++p);
+	p = strchr(p, SEPARATOR);
+	if(p == nullptr)
+	{
+		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		return;
+	}
+	float heading = atof(++p);
+	p = strchr(p, SEPARATOR);
+	if(p == nullptr)
+	{
+		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		return;
+	}
+	fanet.writePosition(Coordinate2D(lat, lon), heading);
+	print_line(FN_REPLY_OK);
+}
+
 /* mux string */
-void Serial_Interface::fanet_eval(char *str)
+void Serial_Interface::fanet_remote_eval(char *str)
 {
 	switch(str[strlen(FANET_CMD_START)])
 	{
-	case CMD_TRANSMIT:
-		fanet_cmd_transmit(&str[strlen(FANET_CMD_START) + 1]);
-		break;
-	case CMD_ADDR:
-		fanet_cmd_addr(&str[strlen(FANET_CMD_START) + 1]);
-		break;
-	case CMD_NEIGHBOR:
-		fanet_cmd_neighbor(&str[strlen(FANET_CMD_START) + 1]);
-		break;
-	case CMD_PROMISCUOUS:
-		fanet_cmd_promiscuous(&str[strlen(FANET_CMD_START) + 1]);
-		break;
 	case CMD_REMOTEKEY:
-		fanet_cmd_key(&str[strlen(FANET_CMD_START) + 1]);
+		fanet_remote_key(&str[strlen(REMOTE_CMD_START) + 1]);
+		break;
+	case CMD_REMOTELOCATION:
+		fanet_remote_location(&str[strlen(REMOTE_CMD_START) + 1]);
 		break;
 	default:
 		print_line(FN_REPLYE_FN_UNKNOWN_CMD);
@@ -414,7 +486,7 @@ void Serial_Interface::handle_rx(void)
 		printf("### rx:'%s'\n", line);
 #endif
 		if(!strncmp(line, FANET_CMD_START, 3))
-			fanet_eval(line);
+			fanet_cmd_eval(line);
 		else if(!strncmp(line, DONGLE_CMD_START, 3))
 			dongle_eval(line);
 		else

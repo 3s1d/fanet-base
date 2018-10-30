@@ -330,14 +330,71 @@ void Fanet::writeKey(char *newKey)
 
 void Fanet::loadKey(void)
 {
-	if(((char *)(__IO uint64_t*)FANET_KEYADDR_BASE)[0] != 0xFF)
-		snprintf(_key, sizeof(_key), "%s", (char *)(__IO uint64_t*)FANET_KEYADDR_BASE);
+	if(*(__IO uint64_t*)FANET_KEYADDR_BASE == UINT64_MAX)
+		return;
+
+	snprintf(_key, sizeof(_key), "%s", (char *)(__IO uint64_t*)FANET_KEYADDR_BASE);
 }
 
-Fanet::Fanet() : Fapp()
+void Fanet::writePosition(Coordinate2D newPos, float newHeading)
 {
-	/* read condifuration */
+	/* copy position */
+	_position = newPos;
+	_heading = newHeading;
+
+	/* determine page */
+	FLASH_EraseInitTypeDef eraseInit = {0};
+	eraseInit.TypeErase = FLASH_TYPEERASE_PAGES;
+	eraseInit.Banks = FLASH_BANK_1;
+	eraseInit.Page = FANET_POSADDR_PAGE;
+	eraseInit.NbPages = 1;
+
+	/* erase */
+	uint32_t sectorError = 0;
+	HAL_FLASH_Unlock();
+	HAL_FLASHEx_Erase(&eraseInit, &sectorError);
+	HAL_FLASH_Lock();
+
+	/* write */
+	HAL_FLASH_Unlock();
+
+	uint64_t addr_container = ((uint64_t) ((uint8_t *)&position.latitude)[0]) << 0 |
+				((uint64_t) ((uint8_t *)&position.latitude)[1]) << 8 |
+				((uint64_t) ((uint8_t *)&position.latitude)[2]) << 16 |
+				((uint64_t) ((uint8_t *)&position.latitude)[3]) << 24;
+	HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_POSADDR_BASE + 0, addr_container);
+
+	addr_container = ((uint64_t) ((uint8_t *)&position.longitude)[0]) << 0 |
+				((uint64_t) ((uint8_t *)&position.longitude)[1]) << 8 |
+				((uint64_t) ((uint8_t *)&position.longitude)[2]) << 16 |
+				((uint64_t) ((uint8_t *)&position.longitude)[3]) << 24;
+	HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_POSADDR_BASE + 8, addr_container);
+
+	addr_container = ((uint64_t) ((uint8_t *)&heading)[0]) << 0 |
+				((uint64_t) ((uint8_t *)&heading)[1]) << 8 |
+				((uint64_t) ((uint8_t *)&heading)[2]) << 16 |
+				((uint64_t) ((uint8_t *)&heading)[3]) << 24;
+	HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_POSADDR_BASE + 16, addr_container);
+
+}
+
+void Fanet::loadPosition(void)
+{
+	if(*(__IO uint64_t*)FANET_POSADDR_BASE == UINT64_MAX)
+		return;
+
+	memcpy(&_position.latitude, (void *)(__IO uint64_t*) (FANET_POSADDR_BASE+0), sizeof(float));
+	memcpy(&_position.longitude, (void *)(__IO uint64_t*) (FANET_POSADDR_BASE+8), sizeof(float));
+	memcpy(&_heading, (void *)(__IO uint64_t*) (FANET_POSADDR_BASE+16), sizeof(float));
+}
+
+Fanet::Fanet() : Fapp(), position(_position), heading(_heading)
+{
+	/* read configuration */
 	loadKey();
+	loadPosition();
+
+
 }
 
 Fanet fanet = Fanet();

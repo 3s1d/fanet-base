@@ -52,6 +52,7 @@ public:
 Coordinate2D operator-(const Coordinate2D& lhs, const Coordinate2D& rhs);
 bool operator!=(const Coordinate2D& lhs, const Coordinate2D& rhs);
 bool operator==(const Coordinate3D& lhs, const Coordinate3D& rhs);
+bool operator==(const Coordinate2D& lhs, const Coordinate2D& rhs);
 
 
 namespace Coord

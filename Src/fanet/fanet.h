@@ -40,6 +40,8 @@ void fanet_task(void const * argument);
 #define FLASH_PAGESIZE				2048
 #define FANET_KEYADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 2)
 #define FANET_KEYADDR_BASE			(FLASH_BASE + FANET_KEYADDR_PAGE*FLASH_PAGESIZE)
+#define FANET_POSADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 4)
+#define FANET_POSADDR_BASE			(FLASH_BASE + FANET_POSADDR_PAGE*FLASH_PAGESIZE)
 
 #include "fmac.h"
 
@@ -69,9 +71,19 @@ private:
 	FanetAckRes_t ackRes = WAIT;
 	char _key[16] = { '\0' };
 
+	/* position, all in degree */
+	Coordinate2D _position = Coordinate2D();
+	float _heading = 0.0f;
+
+	void loadKey(void);
+	void loadPosition(void);
+
+
 public:
 	bool promiscuous = false;
 	const char *key = _key;
+	const Coordinate2D &position;
+	const float &heading;
 
 	Fanet();
 
@@ -100,7 +112,7 @@ public:
 
 	/* remote config */
 	void writeKey(char *newKey);
-	void loadKey(void);
+	void writePosition(Coordinate2D newPos, float newHeading);
 };
 
 extern Fanet fanet;
