@@ -24,7 +24,7 @@ osMessageQId fanet_QueueID;
 
 /*
  *
- * TODO new can return NULL!!!! check!
+ * TODO new can return NULL!!!! no exception anymore! check!
  *
  *
  */
@@ -59,6 +59,7 @@ void fanet_task(void const * argument)
 
 	osThreadYield();
 	serialInt.print_line(FN_REPLYM_INITIALIZED);
+	debug_printf("Addr %02X:%04X\n", fmac.addr.manufacturer, fmac.addr.id);
 
 	/* turn on FANET */
 	fmac.setPower(true);
@@ -221,52 +222,81 @@ uint16_t Fanet::numNeighbors(void)
 	return nn;
 }
 
-/* Fapp */
 bool Fanet::isBroadcastReady(void)
 {
-	/* is the state valid? */
-//	if(flightCtl.gnssVaild == false || flightCtl.player.isActive())			//todo dev mode here
+	/* time for next broadcast? */
+	if(nextRfBroadcast > osKernelSysTick())
 		return false;
 
-	/* in case of a busy channel, ensure that frames from the fifo get also a change */
-//	if(nextTrkBroadcast > osKernelSysTick())
-//		return false;
+	/* not valid replay feature -> find next */
+	if(replayFeature[nextRfIdx].type == 0xFF)
+	{
+		/* find next index, max iterate once over array */
+		for(uint16_t i=0; i<NELEM(replayFeature); i++)
+		{
+			/* overflow */
+			nextRfIdx = (nextRfIdx+1) % NELEM(replayFeature);
 
-	/* determine if its time to send something (again) */
-//	const int tau_add = (numNeighbors()/10 + 1) * FANET_TYPE1OR7_TAU_MS;
-//	if(lastTrkBroadcast + tau_add > osKernelSysTick())
-//		return false;
+			/* suitable content */
+			if(replayFeature[nextRfIdx].type != 0xFF)
+				break;
+		}
 
-//	return true;
+		/* still not valid */
+		if(replayFeature[nextRfIdx].type == 0xFF)
+		{
+			/* just in case, delay eval by 10sec */
+			nextRfBroadcast = osKernelSysTick() + 10000;
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void Fanet::broadcastSuccessful(FanetFrame::FrameType_t type)
+{
+	nextRfBroadcast = osKernelSysTick() + FANET_TYPE6_TAU_MS;
+
+	/* find next index */
+	for(uint16_t i=0; i<NELEM(replayFeature); i++)
+	{
+		/* overflow */
+		if(++nextRfIdx >= NELEM(replayFeature))
+		{
+			nextRfIdx = 0;
+			nextRfBroadcast += FANET_TYPE6_PAUSE_MS - FANET_TYPE6_TAU_MS;
+		}
+
+		if(replayFeature[nextRfIdx].type != 0xFF)
+			break;
+	}
 }
 
 //note: we must return a frame here as we already advertised that we are ready
 FanetFrame *Fanet::getFrame(void)
 {
-	return nullptr;	//TODO!!!
+	debug_printf("Broadcast type:%x (idx:%d)\n", replayFeature[nextRfIdx].type, nextRfIdx);
+
 	/* broadcast tracking information */
 	//note: filled upon serialize
-//	FanetFrame *frm;
-//	if(fanet.state <= FanetDef::distressCallAuto || flightCtl.getMode() != FlightControl::Flight ||
-//			flightCtl.recorder->state < Recorder::AutoOn)
-//		frm = new FanetFrameGndTracking();
-//	else
-//		frm = new FanetFrameTracking();
+	FanetFrame *frm = new FanetFrame();
 
-	/* in case of a busy channel, ensure that frames from the fifo gets also a change */
-//	nextTrkBroadcast = osKernelSysTick() + FANET_TYPE1OR7_MINTAU_MS;
+	/* allow for replay/alternative information */
+	//note: we'll might send crap if somebody altered the content since isBroadcastReady(). Thou' can't stop here...
+	frm->setType(static_cast<FanetFrame::FrameType_t>(replayFeature[nextRfIdx].type));
+	frm->payloadLength = replayFeature[nextRfIdx].payloadLength;
+	frm->payload = new uint8_t[frm->payloadLength];
+	memcpy(frm->payload, replayFeature[nextRfIdx].payload, frm->payloadLength);
 
-//	return static_cast<FanetFrame *>(frm);
+	return frm;
 }
 
 bool Fanet::rcPosition(uint8_t *payload, uint16_t payload_length)
 {
 	/* remove our position */
 	if(payload_length == 0)
-	{
-		writePosition(Coordinate3D(), 0.0f);
-		return true;
-	}
+		return writePosition(Coordinate3D(), 0.0f);
 
 	/* to little information */
 	if(payload_length < 9)
@@ -279,9 +309,7 @@ bool Fanet::rcPosition(uint8_t *payload, uint16_t payload_length)
 	if(((uint16_t*)payload)[3] & 1<<11)
 		alt*=4;
 	float head = (((float)payload[8])/256.0f) * 360.0f;
-	writePosition(Coordinate3D(nPos.latitude, nPos.longitude, alt), head);
-
-	return true;
+	return writePosition(Coordinate3D(nPos.latitude, nPos.longitude, alt), head);
 }
 
 //note: decoded here as it heavily interacts w/ class Fanet
@@ -326,9 +354,20 @@ bool Fanet::decodeRemoteConfig(FanetFrame *frm)
 	 */
 	bool success = false;
 	if(frm->payloadLength > 0 && frm->payload[0] == FANET_RC_POSITION)
+	{
 		success = rcPosition(&frm->payload[1], frm->payloadLength - 1);
+	}
 	else if(frm->payloadLength > 0 && frm->payload[0] >= FANET_RC_REPLAY_LOWER && frm->payload[0] <= FANET_RC_REPLAY_UPPER)
+	{
 		success = writeReplayFeature(frm->payload[0] - FANET_RC_REPLAY_LOWER, &frm->payload[1], frm->payloadLength - 1);
+
+		/* broadcast latest feature */
+		if(frm->payload[1] != 0xFF)		//type
+		{
+			nextRfIdx = frm->payload[0] - FANET_RC_REPLAY_LOWER;
+			nextRfBroadcast = osKernelSysTick() + 500;
+		}
+	}
 
 	/* generate RC ACK */
 	if(success)
@@ -415,12 +454,16 @@ bool Fanet::writeKey(char *newKey)
 
 	/* erase */
 	uint32_t sectorError = 0;
-	HAL_FLASH_Unlock();
-	HAL_FLASHEx_Erase(&eraseInit, &sectorError);
-	HAL_FLASH_Lock();
+	if(HAL_FLASH_Unlock() != HAL_OK)
+		return false;
+	__HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
+	if(HAL_FLASHEx_Erase(&eraseInit, &sectorError) != HAL_OK)
+	{
+		HAL_FLASH_Lock();
+		return false;
+	}
 
 	/* write */
-	HAL_FLASH_Unlock();
 	for(unsigned int i=0; i<(sizeof(_key)+7)/8; i++)
 	{
 		/* build config */
@@ -428,10 +471,14 @@ bool Fanet::writeKey(char *newKey)
 				((uint64_t)_key[i*8+4])<<32 | ((uint64_t)_key[i*8+5])<<40  |
 				((uint64_t)_key[i*8+6])<<48 | ((uint64_t)_key[i*8+7])<<56;
 
-		HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_KEYADDR_BASE + i*8, addr_container);
+		if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_KEYADDR_BASE + i*8, addr_container) != HAL_OK)
+		{
+			HAL_FLASH_Lock();
+			return false;
+		}
 	}
-	HAL_FLASH_Lock();
 
+	HAL_FLASH_Lock();
 	return true;
 }
 
@@ -443,7 +490,7 @@ void Fanet::loadKey(void)
 	snprintf(_key, sizeof(_key), "%s", (char *)(__IO uint64_t*)FANET_KEYADDR_BASE);
 }
 
-void Fanet::writePosition(Coordinate3D newPos, float newHeading)
+bool Fanet::writePosition(Coordinate3D newPos, float newHeading)
 {
 	/* copy position */
 	_position = newPos;
@@ -458,30 +505,51 @@ void Fanet::writePosition(Coordinate3D newPos, float newHeading)
 
 	/* erase */
 	uint32_t sectorError = 0;
-	HAL_FLASH_Unlock();
-	HAL_FLASHEx_Erase(&eraseInit, &sectorError);
-	HAL_FLASH_Lock();
+	if(HAL_FLASH_Unlock() != HAL_OK)
+		return false;
+	__HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
+	if(HAL_FLASHEx_Erase(&eraseInit, &sectorError) != HAL_OK)
+	{
+		HAL_FLASH_Lock();
+		return false;
+	}
 
 	/* write */
-	HAL_FLASH_Unlock();
 
 	uint64_t addr_container = ((uint64_t) ((uint8_t *)&position.latitude)[0]) << 0 | ((uint64_t) ((uint8_t *)&position.latitude)[1]) << 8 |
 				((uint64_t) ((uint8_t *)&position.latitude)[2]) << 16 |	((uint64_t) ((uint8_t *)&position.latitude)[3]) << 24;
-	HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_POSADDR_BASE + 0, addr_container);
+	if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_POSADDR_BASE + 0, addr_container) != HAL_OK)
+	{
+		HAL_FLASH_Lock();
+		return false;
+	}
 
 	addr_container = ((uint64_t) ((uint8_t *)&position.longitude)[0]) << 0 | ((uint64_t) ((uint8_t *)&position.longitude)[1]) << 8 |
 				((uint64_t) ((uint8_t *)&position.longitude)[2]) << 16 | ((uint64_t) ((uint8_t *)&position.longitude)[3]) << 24;
-	HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_POSADDR_BASE + 8, addr_container);
+	if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_POSADDR_BASE + 8, addr_container) != HAL_OK)
+	{
+		HAL_FLASH_Lock();
+		return false;
+	}
 
 	addr_container = ((uint64_t) ((uint8_t *)&position.altitude)[0]) << 0 |	((uint64_t) ((uint8_t *)&position.altitude)[1]) << 8 |
 				((uint64_t) ((uint8_t *)&position.altitude)[2]) << 16 |	((uint64_t) ((uint8_t *)&position.altitude)[3]) << 24;
-	HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_POSADDR_BASE + 16, addr_container);
+	if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_POSADDR_BASE + 16, addr_container) != HAL_OK)
+	{
+		HAL_FLASH_Lock();
+		return false;
+	}
 
 	addr_container = ((uint64_t) ((uint8_t *)&heading)[0]) << 0 | ((uint64_t) ((uint8_t *)&heading)[1]) << 8 |
 				((uint64_t) ((uint8_t *)&heading)[2]) << 16 | ((uint64_t) ((uint8_t *)&heading)[3]) << 24;
-	HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_POSADDR_BASE + 24, addr_container);
+	if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_POSADDR_BASE + 24, addr_container) != HAL_OK)
+	{
+		HAL_FLASH_Lock();
+		return false;
+	}
 
 	HAL_FLASH_Lock();
+	return true;
 }
 
 void Fanet::loadPosition(void)
@@ -495,7 +563,7 @@ void Fanet::loadPosition(void)
 	memcpy(&_heading, (void *)(__IO uint64_t*) (FANET_POSADDR_BASE+24), sizeof(float));
 }
 
-void Fanet::writeReplayFeatures(void)
+bool Fanet::writeReplayFeatures(void)
 {
 	/* determine page */
 	FLASH_EraseInitTypeDef eraseInit = {0};
@@ -506,12 +574,16 @@ void Fanet::writeReplayFeatures(void)
 
 	/* erase */
 	uint32_t sectorError = 0;
-	HAL_FLASH_Unlock();
-	HAL_FLASHEx_Erase(&eraseInit, &sectorError);
-	HAL_FLASH_Lock();
+	if(HAL_FLASH_Unlock() != HAL_OK)
+		return false;
+	__HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
+	if(HAL_FLASHEx_Erase(&eraseInit, &sectorError) != HAL_OK)
+	{
+		HAL_FLASH_Lock();
+		return false;
+	}
 
 	/* write */
-	HAL_FLASH_Unlock();
 	for(uint16_t i=0; i<sizeof(replayFeature)/8; i++)
 	{
 		/* build config */
@@ -524,9 +596,14 @@ void Fanet::writeReplayFeatures(void)
 				((uint64_t) ((uint8_t *)replayFeature)[i*8 + 6]) << 48 |
 				((uint64_t) ((uint8_t *)replayFeature)[i*8 + 7]) << 56;
 
-		HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_RPADDR_BASE + i*8, addr_container);
+		if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_RPADDR_BASE + i*8, addr_container) != HAL_OK)
+		{
+			HAL_FLASH_Lock();
+			return false;
+		}
 	}
 	HAL_FLASH_Lock();
+	return true;
 }
 
 bool Fanet::writeReplayFeature(uint16_t num, uint8_t *payload, uint16_t len)
@@ -540,8 +617,7 @@ bool Fanet::writeReplayFeature(uint16_t num, uint8_t *payload, uint16_t len)
 		replayFeature[num].type = 0xFF;		//empty
 		replayFeature[num].payloadLength = 0;
 
-		writeReplayFeatures();
-		return true;
+		return writeReplayFeatures();
 	}
 
 	/* copy feature */
@@ -550,8 +626,7 @@ bool Fanet::writeReplayFeature(uint16_t num, uint8_t *payload, uint16_t len)
 	memcpy(replayFeature[num].payload, &payload[1],
 			std::min((uint16_t) replayFeature[num].payloadLength, (uint16_t) sizeof(replayFeature[num].payload)));
 
-	writeReplayFeatures();
-	return true;
+	return writeReplayFeatures();
 }
 
 void Fanet::loadReplayFeatures(void)

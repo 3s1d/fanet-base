@@ -286,9 +286,9 @@ void FanetMac::handleTx()
 	}
 
 	/* serialize frame */
-	uint8_t* buffer;
+	uint8_t* buffer = nullptr;
 	int blength = frm->serialize(buffer);
-	if (blength < 0)
+	if (blength < 0 || buffer == nullptr)
 	{
 #if MAC_debug_mode > 0
 		debug_printf("problem serialize type %02X\n", frm->type);

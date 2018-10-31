@@ -59,9 +59,9 @@ protected:
 
 public:
 	/* general stuff */
-	static uint16_t coord2payload_compressed(float ref_rad);
+	static uint16_t coord2payload_compressed(float ref_deg);
 	static void coord2payload_absolut(const Coordinate3D &coord, uint8_t *buf);
-	static float payload2coord_compressed(const uint16_t *buf, float ref_rad);
+	static float payload2coord_compressed(const uint16_t *buf, float ref_deg);
 	static void payload2coord_absolute(const uint8_t *buf, Coordinate2D &pos);
 	static float payload2ufloat(uint8_t buf, float scale);
 	static float payload2sfloat(uint8_t buf, float scale);

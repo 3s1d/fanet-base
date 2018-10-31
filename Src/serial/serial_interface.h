@@ -64,6 +64,7 @@ void wire_task(void const * argument);
 #define CMD_MODE			'M'
 #define CMD_NEIGHBOR			'N'
 #define CMD_PROMISCUOUS			'P'
+#define CMD_WEATHER			'W'
 
 #define CMD_RX_FRAME			"F"
 
@@ -93,6 +94,7 @@ void wire_task(void const * argument);
 #define FN_REPLYE_TX_BUFF_FULL		FANET_CMD_ERROR, 14, "tx buffer full"
 #define FN_REPLYE_ADDR_GIVEN		FANET_CMD_ERROR, 15, "address already set"
 #define FN_REPLYE_CMD_TOO_SHORT		FANET_CMD_ERROR, 30, "too short"
+#define FN_REPLYE_NOPOSITION		FANET_CMD_ERROR, 31, "no location"
 #define FR_REPLY_OK			REMOTE_CMD_OK, 	 0,  ""
 #define FR_REPLYE_KEYNOTSET		REMOTE_CMD_ERROR,35, "key not set"
 #define FR_REPLYE_LOCATIONNOTSET	REMOTE_CMD_ERROR,36, "location not set"
@@ -100,6 +102,7 @@ void wire_task(void const * argument);
 #define FR_REPLYE_OUTOFBOUND		REMOTE_CMD_ERROR,38, "out of bound"
 #define FR_REPLYE_ALIGN			REMOTE_CMD_ERROR,39, "align"
 #define FR_REPLYM_EMPTY			REMOTE_CMD_MSG,  40, "empty"
+#define FR_REPLYE_WRITEFAILED		REMOTE_CMD_ERROR,41, "write failed"
 #define DN_REPLY_OK			DONGLE_CMD_OK, 	 0,  ""
 #define DN_REPLYE_DONGLE_UNKNOWN_CMD	DONGLE_CMD_ERROR,60, "unknown DG command"
 #define DN_REPLYE_JUMP			DONGLE_CMD_ERROR,61, "unknown jump point"
@@ -115,6 +118,12 @@ void wire_task(void const * argument);
 #endif
 /*
  * Normal Commands
+ *
+ * Weather:		#FNW inet(0..1),[temperature(float)],							note: despite of inet everything is
+ * 				[wind direction(degree,float)],							optional. just put correct amount
+ * 				[wind speed(kmph,float)],[wind gust(kmph,float)],				of commas.
+ * 				[humidity(percent,float)],[pressure(hPa,float)]
+ *
  * Transmit: 		#FNT type,dest_manufacturer,dest_id,forward,ack_required,length,length*2hex[,signature]	note: all values in hex
  *
  * Address: 		#FNA manufacturer(hex),id(hex)								note: w/o address is returned
@@ -150,6 +159,7 @@ private:
 	void fanet_cmd_transmit(char *ch_str);
 	void fanet_cmd_neighbor(char *ch_str);
 	void fanet_cmd_promiscuous(char *ch_str);
+	void fanet_cmd_weather(char *ch_str);
 
 	void fanet_remote_eval(char *str);
 	void fanet_remote_key(char *ch_str);

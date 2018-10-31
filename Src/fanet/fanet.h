@@ -31,10 +31,9 @@ void fanet_task(void const * argument);
 
 #define FANET_NEIGHBOR_SIZE			64
 
-#define FANET_TYPE1OR7_AIRTIME_MS		40		//more like 20-30ms
-#define	FANET_TYPE1OR7_MINTAU_MS		250
-#define	FANET_TYPE1OR7_TAU_MS			5000
-#define FANET_TYPE2_TAU_MS			240000		//4min
+#define	FANET_TYPE6_MINTAU_MS			250
+#define	FANET_TYPE6_TAU_MS			20000
+#define FANET_TYPE6_PAUSE_MS			180000
 
 #define FANET_RC_ACK				0
 #define FANET_RC_POSITION			2
@@ -75,9 +74,8 @@ private:
 	osMutexId neighborMutex = osMutexCreate(osMutex(neighborMutex));
 
 	/* broadcasts */
-	uint32_t lastTrkBroadcast = 0;
-	uint32_t nextTrkBroadcast = 0;
-	uint32_t nextNameBroadcast = 0;
+	uint32_t nextRfBroadcast = 0;
+	uint16_t nextRfIdx = 13-1;
 
 	/* ACK buffer */
 	FanetMacAddr ackAddr;
@@ -92,7 +90,7 @@ private:
 	void loadKey(void);
 	void loadPosition(void);
 	void loadReplayFeatures(void);
-	void writeReplayFeatures(void);
+	bool writeReplayFeatures(void);
 
 	bool rcPosition(uint8_t *payload, uint16_t payload_length);
 	bool decodeRemoteConfig(FanetFrame *frm);
@@ -108,7 +106,7 @@ public:
 
 	/* device -> air */
 	bool isBroadcastReady(void);
-	void broadcastSuccessful(int type) { lastTrkBroadcast = osKernelSysTick(); }
+	void broadcastSuccessful(FanetFrame::FrameType_t type);
 	FanetFrame *getFrame();
 
 	/* air -> device */
@@ -131,7 +129,7 @@ public:
 
 	/* remote config */
 	bool writeKey(char *newKey);
-	void writePosition(Coordinate3D newPos, float newHeading);
+	bool writePosition(Coordinate3D newPos, float newHeading);
 	bool writeReplayFeature(uint16_t num, uint8_t *payload, uint16_t len);
 };
 

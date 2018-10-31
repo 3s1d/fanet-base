@@ -101,7 +101,7 @@ public:
 
 	/* device -> air */
 	virtual bool isBroadcastReady(void) = 0;
-	virtual void broadcastSuccessful(int type) = 0;
+	virtual void broadcastSuccessful(FanetFrame::FrameType_t type) = 0;
 	virtual FanetFrame *getFrame() = 0;
 
 	/* air -> device */

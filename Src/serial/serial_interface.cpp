@@ -16,6 +16,7 @@
 #include "usart.h"
 
 #include "../fanet/fanet.h"
+#include "../fanet/frame/fservice.h"
 #include "../fanet/fmac.h"
 #include "../fanet/sx1272.h"
 #include "serial_interface.h"
@@ -102,6 +103,15 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 	printf("### Packet %s\n", ch_str);
 #endif
 
+	/* remove \r\n and any spaces*/
+	char *ptr = strchr(ch_str, '\r');
+	if(ptr == nullptr)
+		ptr = strchr(ch_str, '\n');
+	if(ptr != nullptr)
+		*ptr = '\0';
+	while(*ch_str == ' ')
+		ch_str++;
+
 	/* w/o an address we can not tx */
 	if(fmac.addr == FanetMacAddr())
 	{
@@ -116,7 +126,7 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 		return;
 	}
 
-	FanetFrame *frm = new FanetFrame(fmac.addr);
+	FanetFrame *frm = new FanetFrame();
 	if(frm == nullptr)
 	{
 		print_line(DN_REPLYE_OUTOFMEMORY);
@@ -188,6 +198,207 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 	}
 }
 
+/* Weather: #FNW inet(0..1),[temperature(float)],[wind direction(degree,float)],[wind speed(kmph,float)],[wind gust(kmph,float)],
+ * 		[humidity(percent,float)],[pressure(hPa,float)] */
+void Serial_Interface::fanet_cmd_weather(char *ch_str)
+{
+#if SERIAL_debug_mode > 0
+	printf("### Packet %s\n", ch_str);
+#endif
+
+	/* remove \r\n and any spaces*/
+	char *ptr = strchr(ch_str, '\r');
+	if(ptr == nullptr)
+		ptr = strchr(ch_str, '\n');
+	if(ptr != nullptr)
+		*ptr = '\0';
+	while(*ch_str == ' ')
+		ch_str++;
+
+	/* w/o an address we can not tx */
+	if(fmac.addr == FanetMacAddr())
+	{
+		print_line(FN_REPLYE_NO_SRC_ADDR);
+		return;
+	}
+
+	/* w/o a position we can not transmit */
+	if(fanet.position == Coordinate3D())
+	{
+		print_line(FN_REPLYE_NOPOSITION);
+		return;
+	}
+
+	/* no need to generate a package. tx queue is full */
+	if(!fmac.txQueueHasFreeSlots())
+	{
+		print_line(FN_REPLYE_TX_BUFF_FULL);
+		return;
+	}
+
+	FanetFrameService *frm = new FanetFrameService();
+	if(frm == nullptr)
+	{
+		print_line(DN_REPLYE_OUTOFMEMORY);
+		return;
+	}
+
+	/* data */
+	float windDir = 0.0f, windSpeed = 0.0f, windGust = 0.0f;
+	bool hasWind = false;
+	char *p = (char *)ch_str;
+	if(*p == '\0')
+	{
+		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		delete frm;
+		return;
+	}
+	frm->hasInet = atoi(p)>0 ? true : false;
+	p = strchr(p, SEPARATOR);
+	if(p == nullptr)
+	{
+		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		delete frm;
+		return;
+	}
+	p++;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+		/* eval temperature*/
+		float temp = atof(p);
+		frm->setTemperature(temp);
+
+		/* find next */
+		p = strchr(p, SEPARATOR);
+		if(p == nullptr)
+		{
+			print_line(FN_REPLYE_CMD_TOO_SHORT);
+			delete frm;
+			return;
+		}
+	}
+	else if(*p == '\0')
+	{
+		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		delete frm;
+		return;
+	}
+	p++;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+		/* eval wind direction */
+		windDir = atof(p);
+		hasWind = true;
+
+		/* find next */
+		p = strchr(p, SEPARATOR);
+		if(p == nullptr)
+		{
+			print_line(FN_REPLYE_CMD_TOO_SHORT);
+			delete frm;
+			return;
+		}
+	}
+	else if(*p == '\0')
+	{
+		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		delete frm;
+		return;
+	}
+	p++;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+		/* eval wind speed */
+		windSpeed = atof(p);
+		hasWind = true;
+
+		/* find next */
+		p = strchr(p, SEPARATOR);
+		if(p == nullptr)
+		{
+			print_line(FN_REPLYE_CMD_TOO_SHORT);
+			delete frm;
+			return;
+		}
+	}
+	else if(*p == '\0')
+	{
+		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		delete frm;
+		return;
+	}
+	p++;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+		/* eval wind gust  */
+		windGust = atof(p);
+		hasWind = true;
+
+		/* find next */
+		p = strchr(p, SEPARATOR);
+		if(p == nullptr)
+		{
+			print_line(FN_REPLYE_CMD_TOO_SHORT);
+			delete frm;
+			return;
+		}
+	}
+	else if(*p == '\0')
+	{
+		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		delete frm;
+		return;
+	}
+	p++;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+		/* eval humidity */
+		float humidity = atof(p);
+		frm->setHumidity(humidity);
+
+		/* find next */
+		p = strchr(p, SEPARATOR);
+		if(p == nullptr)
+		{
+			print_line(FN_REPLYE_CMD_TOO_SHORT);
+			delete frm;
+			return;
+		}
+	}
+	else if(*p == '\0')
+	{
+		print_line(FN_REPLYE_CMD_TOO_SHORT);
+		delete frm;
+		return;
+	}
+	p++;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+		/* eval pressure */
+		float hPa = atof(p);
+		frm->setPressure(hPa);
+
+	}
+
+	if(hasWind)
+		frm->setWind(windDir, windSpeed, windGust);
+
+	/* pass to mac */
+	if(fmac.transmit(frm) == 0)
+	{
+		if(!sx1272_isArmed())
+			print_line(FN_REPLYM_PWRDOWN);
+		else
+			print_line(FN_REPLY_OK);
+	}
+	else
+	{
+		delete frm;
+		print_line(FN_REPLYE_TX_BUFF_FULL);
+	}
+}
+
+
 void Serial_Interface::fanet_cmd_neighbor(char *ch_str)
 {
 	std::list<FanetNeighbor*> neighbors = fanet.getNeighbors_locked();
@@ -237,6 +448,9 @@ void Serial_Interface::fanet_cmd_eval(char *str)
 {
 	switch(str[strlen(FANET_CMD_START)])
 	{
+	case CMD_WEATHER:
+		fanet_cmd_weather(&str[strlen(FANET_CMD_START) + 1]);
+		break;
 	case CMD_TRANSMIT:
 		fanet_cmd_transmit(&str[strlen(FANET_CMD_START) + 1]);
 		break;
@@ -286,8 +500,10 @@ void Serial_Interface::fanet_remote_key(char *ch_str)
 	}
 
 	/* set status */
-	fanet.writeKey(ch_str);
-	print_line(FN_REPLY_OK);
+	if(fanet.writeKey(ch_str) == true)
+		print_line(FR_REPLY_OK);
+	else
+		print_line(FR_REPLYE_WRITEFAILED);
 }
 
 void Serial_Interface::fanet_remote_location(char *ch_str)
@@ -342,8 +558,10 @@ void Serial_Interface::fanet_remote_location(char *ch_str)
 		return;
 	}
 	const float heading = atof(++p);
-	fanet.writePosition(Coordinate3D(lat, lon, alt), heading);
-	print_line(FN_REPLY_OK);
+	if(fanet.writePosition(Coordinate3D(lat, lon, alt), heading) == true)
+		print_line(FR_REPLY_OK);
+	else
+		print_line(FR_REPLYE_WRITEFAILED);
 }
 
 void Serial_Interface::fanet_remote_replay(char *ch_str)
@@ -409,8 +627,10 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 		}
 		buf[i] = strtol(sstr,  NULL,  16);
 	}
-	fanet.writeReplayFeature(num, buf, strlen(p)/2);
-	print_line(FR_REPLY_OK);
+	if(fanet.writeReplayFeature(num, buf, strlen(p)/2) == true)
+		print_line(FR_REPLY_OK);
+	else
+		print_line(FR_REPLYE_WRITEFAILED);
 }
 
 /* mux string */
