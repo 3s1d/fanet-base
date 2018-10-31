@@ -11,6 +11,7 @@
 #include <cmath>
 
 #include "common.h"
+#include "constrain.h"
 #include "jump.h"
 #include "serial.h"
 #include "usart.h"
@@ -443,6 +444,85 @@ void Serial_Interface::fanet_cmd_promiscuous(char *ch_str)
 	print_line(FN_REPLY_OK);
 }
 
+void Serial_Interface::fanet_cmd_dump(char *ch_str)
+{
+	//todo true binary mode ???
+
+	uint16_t idx = 0;
+	uint8_t buffer[256];
+
+	/* header */
+	print("01");								//version
+	buffer[idx++] = fmac.addr.manufacturer & 0x00FF;
+	buffer[idx++] = fmac.addr.id & 0x00FF;
+	buffer[idx++] = (fmac.addr.id>>8) & 0x00FF;
+	FanetFrame::coord2payload_absolut(fanet.position, &buffer[idx]);
+	idx += 6;
+	print_raw(buffer, idx);
+	print("\n");
+
+	std::list<FanetNeighbor*> neighbors = fanet.getNeighbors_locked();
+	for(auto neighbor : neighbors)
+	{
+		idx = 0;
+
+		/* address */
+		buffer[idx++] = neighbor->addr.manufacturer & 0x00FF;
+		buffer[idx++] = neighbor->addr.id & 0x00FF;
+		buffer[idx++] = (neighbor->addr.id>>8) & 0x00FF;
+
+		/* type */
+		//note: 0xff -> no tracking received so far
+		if(neighbor->isAirborne())						//aircraft/status typ fit into lower 4bit -> 2bits free
+			buffer[idx++] = neighbor->aircraft | 0x40;
+		else
+			buffer[idx++] = neighbor->status | 0xC0;
+
+		/* position */
+		FanetFrame::coord2payload_absolut(neighbor->pos, &buffer[idx]);
+		idx += 6;
+		int16_t alt = neighbor->pos.altitude+0.5f;
+		buffer[idx++] = alt & 0x00FF;
+		buffer[idx++] = (alt>>8) & 0x00FF;
+
+		/* state */
+		int speed2 = constrain((int)std::round(neighbor->speed_kmh*2.0f), 0, 635);
+		if(speed2 > 127)
+			buffer[idx++] = ((speed2+2)/5) | (1<<7);						//set scale factor
+		else
+			buffer[idx++] = speed2;
+		int climb10 = constrain((int)std::round(neighbor->climb_mps*10.0f), -315, 315);
+		if(std::abs(climb10) > 63)
+			buffer[idx++] = ((climb10 + (climb10>=0?2:-2))/5) | (1<<7);				//set scale factor
+		else
+			buffer[idx++] = climb10 & 0x7F;
+		buffer[idx++] = constrain((int)std::round(neighbor->heading_rad * 256.0f / M_2PI_f), 0, 255);
+
+		/* name */
+		if(strlen(neighbor->name))
+			idx += snprintf((char *) &buffer[idx], sizeof(buffer) - idx, "%s", neighbor->name) + 1;
+		else
+			buffer[idx++] = '\0';									//zero string terminator
+
+		/* message */
+		if(neighbor->msg != nullptr && strlen(neighbor->msg) > 0)
+		{
+			idx += snprintf((char *) &buffer[idx], sizeof(buffer) - idx, "%s", neighbor->msg) + 1;
+			delete [] neighbor->msg;							//delete message to prevent retransmission
+			neighbor->msg = nullptr;
+		}
+		else
+		{
+			buffer[idx++] = '\0';									//zero string terminator
+		}
+
+		print_raw(buffer, idx);
+		print("\n");
+	}
+	fanet.releaseNeighbors();
+	print_line(FN_REPLY_OK);
+}
+
 /* mux string */
 void Serial_Interface::fanet_cmd_eval(char *str)
 {
@@ -453,6 +533,9 @@ void Serial_Interface::fanet_cmd_eval(char *str)
 		break;
 	case CMD_TRANSMIT:
 		fanet_cmd_transmit(&str[strlen(FANET_CMD_START) + 1]);
+		break;
+	case CMD_DUMP:
+		fanet_cmd_dump(&str[strlen(FANET_CMD_START) + 1]);
 		break;
 	case CMD_ADDR:
 		fanet_cmd_addr(&str[strlen(FANET_CMD_START) + 1]);
@@ -822,12 +905,22 @@ void Serial_Interface::handle_frame(FanetFrame *frm)
 			frm->type, frm->payloadLength);
 	print(buf);
 
-	for(int i=0; i<frm->payloadLength; i++)
+	/* payload */
+	print_raw(frm->payload, frm->payloadLength);
+	print("\n");
+}
+
+void Serial_Interface::print_raw(const uint8_t *data, uint16_t len)
+{
+	if(data == nullptr || len == 0)
+		return;
+
+	char buf[4];
+	for(int i=0; i<len; i++)
 	{
-		snprintf(buf, sizeof(buf), "%02X", frm->payload[i]);
+		snprintf(buf, sizeof(buf), "%02X", data[i]);
 		print(buf);
 	}
-	print((char*) "\n");
 }
 
 void Serial_Interface::print_line(const char *type, int key, const char *msg)

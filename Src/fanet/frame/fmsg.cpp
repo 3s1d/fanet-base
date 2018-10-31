@@ -38,7 +38,6 @@ void FanetFrameMessage::decode(const uint8_t *payload, const uint16_t len, Fanet
 		return;
 
 	/* push message forward to neighbor */
-	//neighbor->setMessage((const char *) &payload[1], len-1);
-	debug_printf("rx'msg gets ignored\n");
+	neighbor->setMessage((const char *) &payload[1], len-1);
 }
 

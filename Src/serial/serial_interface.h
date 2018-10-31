@@ -65,6 +65,7 @@ void wire_task(void const * argument);
 #define CMD_NEIGHBOR			'N'
 #define CMD_PROMISCUOUS			'P'
 #define CMD_WEATHER			'W'
+#define CMD_DUMP			'D'
 
 #define CMD_RX_FRAME			"F"
 
@@ -123,7 +124,7 @@ void wire_task(void const * argument);
  * 				[wind direction(degree,float)],							optional. just put correct amount
  * 				[wind speed(kmph,float)],[wind gust(kmph,float)],				of commas.
  * 				[humidity(percent,float)],[pressure(hPa,float)]
- *
+ * Dump:		#FND											note: one neighbor per line
  * Transmit: 		#FNT type,dest_manufacturer,dest_id,forward,ack_required,length,length*2hex[,signature]	note: all values in hex
  *
  * Address: 		#FNA manufacturer(hex),id(hex)								note: w/o address is returned
@@ -160,6 +161,7 @@ private:
 	void fanet_cmd_neighbor(char *ch_str);
 	void fanet_cmd_promiscuous(char *ch_str);
 	void fanet_cmd_weather(char *ch_str);
+	void fanet_cmd_dump(char *ch_str);
 
 	void fanet_remote_eval(char *str);
 	void fanet_remote_key(char *ch_str);
@@ -189,6 +191,7 @@ public:
 	uint32_t get_lastactivity(void) { return last_activity; };
 	bool any_actitity(void) { return (last_activity!=0); };
 
+	void print_raw(const uint8_t *data, uint16_t len);
 	void print_line(const char *type, int key, const char *msg);
 	void print(const char *str) { serial::print(str, myserial); }
 };
