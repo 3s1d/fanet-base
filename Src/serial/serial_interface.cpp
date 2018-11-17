@@ -20,6 +20,7 @@
 #include "../fanet/frame/fservice.h"
 #include "../fanet/fmac.h"
 #include "../fanet/sx1272.h"
+#include "../dump_hash.h"			//not contained in repo for obvious reasons!
 #include "serial_interface.h"
 
 
@@ -444,6 +445,28 @@ void Serial_Interface::fanet_cmd_promiscuous(char *ch_str)
 	print_line(FN_REPLY_OK);
 }
 
+uint16_t Serial_Interface::hash(uint8_t *buf, uint16_t len)
+{
+	/* generate hash */
+	uint16_t hash = DUMP_HASH;
+	uint16_t idx = 0;
+	while(idx < len)
+	{
+		uint16_t high = (*buf++);
+		uint16_t low = (*buf++);
+
+		hash ^= (high<<8);
+		hash ^= low;
+
+		idx += 2;
+	}
+	hash &= 0x7FFF;
+
+	/* add to buffer */
+	*((uint16_t*)buf) = hash;
+	return sizeof(uint16_t);
+}
+
 void Serial_Interface::fanet_cmd_dump(char *ch_str)
 {
 	//todo true binary mode ???
@@ -452,12 +475,13 @@ void Serial_Interface::fanet_cmd_dump(char *ch_str)
 	uint8_t buffer[256];
 
 	/* header */
-	print("01");								//version
+	buffer[idx++] = 0x01;								//version
 	buffer[idx++] = fmac.addr.manufacturer & 0x00FF;
 	buffer[idx++] = fmac.addr.id & 0x00FF;
 	buffer[idx++] = (fmac.addr.id>>8) & 0x00FF;
 	FanetFrame::coord2payload_absolut(fanet.position, &buffer[idx]);
 	idx += 6;
+	idx += hash(buffer, idx);
 	print_raw(buffer, idx);
 	print("\n");
 

@@ -154,6 +154,8 @@ class Serial_Interface
 private:
 	uint32_t last_activity = 0;
 
+	uint16_t hash(uint8_t *buf, uint16_t len);			//len must be mod 2
+
 	/* Normal Commands */
 	void fanet_cmd_eval(char *str);
 	void fanet_cmd_addr(char *ch_str);
