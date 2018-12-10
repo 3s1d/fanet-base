@@ -104,6 +104,28 @@ bool FanetMac::eraseAddr(void)
 	return (ret == HAL_OK && sectorError == UINT32_MAX);
 }
 
+#ifdef MAC_SWITCHABLE
+bool FanetMac::writeVolatileAddr(FanetMacAddr addr)
+{
+	/* test for initialized storage, work with volatile MAC only if valid non-volatile MAC is available */
+	if(*(__IO uint64_t*)MAC_ADDR_BASE == UINT64_MAX)
+		return false;
+	_addr = addr;
+
+	return true;
+}
+
+bool FanetMac::eraseVolatileAddr(void)
+{
+	/* test for initialized storage, work with volatile MAC only if valid non-volatile MAC is available */
+	if(*(__IO uint64_t*)MAC_ADDR_BASE == UINT64_MAX)
+		return false;
+	/* simply return back to non-volatile addr*/
+	_addr = readAddr();
+	return true;
+}
+#endif
+
 /* this is executed in a non-linear fashion */
 void FanetMac::receivedBuffer2Frame(int length)
 {
