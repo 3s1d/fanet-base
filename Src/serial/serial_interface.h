@@ -21,6 +21,7 @@ void wire_task(void const * argument);
 #include <string.h>
 #include "serial.h"
 
+#include "config.h"
 #include "../fanet/fanet.h"
 #include "../fanet/fmac.h"
 
@@ -71,7 +72,7 @@ void wire_task(void const * argument);
 
 /* Remote */
 #define CMD_REMOTEKEY			'K'
-#define CMD_REMOTELOCATION		'L'
+#define CMD_COORDINATE			'C'
 #define CMD_REMOTEREPLAY		'R'
 
 /* Dongle */
@@ -132,7 +133,6 @@ void wire_task(void const * argument);
  * Promiscuous:		#FNP promiscuous(0..1)
  *
  * Remote Key:		#FRK key
- * Location:		#FRL latitude,longitude,altitude,heading						note: in degree
  * Replay Feature:	#FRR num(hex),payload									note: #FRR num,FF -> clean
  *
  * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload
@@ -140,9 +140,8 @@ void wire_task(void const * argument);
  * Maintenance/Dongle
  * Version:		#DGV
  * Power:		#DGP powermode(0..1)									note: w/o status is returned
- * Region:		#DGL freq(868,915),power(2..20 (dBm))							note: 10dBm is sufficient for
- * 															Skytraxx modules using the
- * 															stock antenna
+ * Region:		#DGL freq(868,915),power(2..20 (dBm))							note: 10dBm for Skytraxx stock antenna
+ * Coordinate:		#DGC latitude,longitude,altitude,heading						note: in degree
  *
  * Jump to DFU:		#DGJ BLstm										stm32 default bootloader
  * 														recommended: use 2 GPIOs connected
@@ -167,7 +166,6 @@ private:
 
 	void fanet_remote_eval(char *str);
 	void fanet_remote_key(char *ch_str);
-	void fanet_remote_location(char *ch_str);
 	void fanet_remote_replay(char *ch_str);
 
 	/* Dongle Commands */
@@ -176,6 +174,7 @@ private:
 	void dongle_cmd_power(char *ch_str);
 	void dongle_cmd_region(char *ch_str);
 	void dongle_cmd_jump(char *ch_str);
+	void dongle_cmd_location(char *ch_str);
 
 public:
 	serial_t *myserial = nullptr;

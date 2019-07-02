@@ -101,7 +101,7 @@ void Serial_Interface::fanet_cmd_addr(char *ch_str)
 //note: all in HEX
 void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 {
-#if SERIAL_debug_mode > 0
+#if defined(DEBUG) && (SERIAL_debug_mode > 0)
 	printf("### Packet %s\n", ch_str);
 #endif
 
@@ -204,7 +204,7 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
  * 		[humidity(percent,float)],[pressure(hPa,float)] */
 void Serial_Interface::fanet_cmd_weather(char *ch_str)
 {
-#if SERIAL_debug_mode > 0
+#if defined(DEBUG) && (SERIAL_debug_mode > 0)
 	printf("### Packet %s\n", ch_str);
 #endif
 
@@ -613,64 +613,6 @@ void Serial_Interface::fanet_remote_key(char *ch_str)
 		print_line(FR_REPLYE_WRITEFAILED);
 }
 
-void Serial_Interface::fanet_remote_location(char *ch_str)
-{
-	/* remove \r\n and any spaces*/
-	char *ptr = strchr(ch_str, '\r');
-	if(ptr == nullptr)
-		ptr = strchr(ch_str, '\n');
-	if(ptr != nullptr)
-		*ptr = '\0';
-	while(*ch_str == ' ')
-		ch_str++;
-
-	if(strlen(ch_str) == 0)
-	{
-		if(fanet.position != Coordinate3D())
-		{
-			/* report location */
-			char buf[64];
-			snprintf(buf, sizeof(buf), "%s%c %.5f,%.5f,%.f,%.1f\n", REMOTE_CMD_START, CMD_REMOTELOCATION,
-					fanet.position.latitude, fanet.position.longitude, fanet.position.altitude, fanet.heading);
-			print(buf);
-		}
-		else
-		{
-			print_line(FR_REPLYE_LOCATIONNOTSET);
-		}
-		return;
-	}
-
-	/* set position / heading */
-	char *p = (char *)ch_str;
-	const float lat = atof(p);
-	p = strchr(p, SEPARATOR);
-	if(p == nullptr)
-	{
-		print_line(FR_REPLYE_CMDTOOSHORT);
-		return;
-	}
-	const float lon = atof(++p);
-	p = strchr(p, SEPARATOR);
-	if(p == nullptr)
-	{
-		print_line(FR_REPLYE_CMDTOOSHORT);
-		return;
-	}
-	const float alt = atof(++p);
-	p = strchr(p, SEPARATOR);
-	if(p == nullptr)
-	{
-		print_line(FR_REPLYE_CMDTOOSHORT);
-		return;
-	}
-	const float heading = atof(++p);
-	if(fanet.writePosition(Coordinate3D(lat, lon, alt), heading) == true)
-		print_line(FR_REPLY_OK);
-	else
-		print_line(FR_REPLYE_WRITEFAILED);
-}
-
 void Serial_Interface::fanet_remote_replay(char *ch_str)
 {
 	/* remove \r\n and any spaces*/
@@ -748,9 +690,6 @@ void Serial_Interface::fanet_remote_eval(char *str)
 	case CMD_REMOTEKEY:
 		fanet_remote_key(&str[strlen(REMOTE_CMD_START) + 1]);
 		break;
-	case CMD_REMOTELOCATION:
-		fanet_remote_location(&str[strlen(REMOTE_CMD_START) + 1]);
-		break;
 	case CMD_REMOTEREPLAY:
 		fanet_remote_replay(&str[strlen(REMOTE_CMD_START) + 1]);
 		break;
@@ -810,11 +749,6 @@ void Serial_Interface::dongle_cmd_power(char *ch_str)
 
 void Serial_Interface::dongle_cmd_region(char *ch_str)
 {
-#if defined(SerialDEBUG) && (SERIAL_debug_mode > 0)
-	SerialDEBUG.print(F("### Region "));
-	SerialDEBUG.print(ch_str);
-#endif
-
 	/* eval parameter */
 	char *p = (char *)ch_str;
 	if(p == NULL)
@@ -847,6 +781,64 @@ void Serial_Interface::dongle_cmd_region(char *ch_str)
 		print_line(DN_REPLYE_UNKNOWNPARAMETER);
 }
 
+void Serial_Interface::dongle_cmd_location(char *ch_str)
+{
+	/* remove \r\n and any spaces*/
+	char *ptr = strchr(ch_str, '\r');
+	if(ptr == nullptr)
+		ptr = strchr(ch_str, '\n');
+	if(ptr != nullptr)
+		*ptr = '\0';
+	while(*ch_str == ' ')
+		ch_str++;
+
+	if(strlen(ch_str) == 0)
+	{
+		if(fanet.position != Coordinate3D())
+		{
+			/* report location */
+			char buf[64];
+			snprintf(buf, sizeof(buf), "%s%c %.5f,%.5f,%.f,%.1f\n", REMOTE_CMD_START, CMD_COORDINATE,
+					fanet.position.latitude, fanet.position.longitude, fanet.position.altitude, fanet.heading);
+			print(buf);
+		}
+		else
+		{
+			print_line(FR_REPLYE_LOCATIONNOTSET);
+		}
+		return;
+	}
+
+	/* set position / heading */
+	char *p = (char *)ch_str;
+	const float lat = atof(p);
+	p = strchr(p, SEPARATOR);
+	if(p == nullptr)
+	{
+		print_line(FR_REPLYE_CMDTOOSHORT);
+		return;
+	}
+	const float lon = atof(++p);
+	p = strchr(p, SEPARATOR);
+	if(p == nullptr)
+	{
+		print_line(FR_REPLYE_CMDTOOSHORT);
+		return;
+	}
+	const float alt = atof(++p);
+	p = strchr(p, SEPARATOR);
+	if(p == nullptr)
+	{
+		print_line(FR_REPLYE_CMDTOOSHORT);
+		return;
+	}
+	const float heading = atof(++p);
+	if(fanet.writePosition(Coordinate3D(lat, lon, alt), heading) == true)
+		print_line(FR_REPLY_OK);
+	else
+		print_line(FR_REPLYE_WRITEFAILED);
+}
+
 /* mux string */
 void Serial_Interface::dongle_eval(char *str)
 {
@@ -863,6 +855,9 @@ void Serial_Interface::dongle_eval(char *str)
 		break;
 	case CMD_BOOTLOADER:
 		dongle_cmd_jump(&str[strlen(DONGLE_CMD_START) + 1]);
+		break;
+	case CMD_COORDINATE:
+		dongle_cmd_location(&str[strlen(REMOTE_CMD_START) + 1]);
 		break;
 	default:
 		print_line(DN_REPLYE_DONGLE_UNKNOWN_CMD);

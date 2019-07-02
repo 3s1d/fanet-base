@@ -58,6 +58,7 @@
 /* USER CODE BEGIN Includes */     
 #include <stdio.h>
 #include "fanet/fanet.h"
+#include "sensor/wind.h"
 #include "serial/serial_interface.h"
 /* USER CODE END Includes */
 
@@ -82,6 +83,7 @@
 /* USER CODE END Variables */
 osThreadId fanetTaskHandle;
 osThreadId wireTaskHandle;
+osThreadId windTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -90,6 +92,7 @@ osThreadId wireTaskHandle;
 
 void fanet_task(void const * argument);
 extern void wire_task(void const * argument);
+extern void wind_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -120,6 +123,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
 	fanet_rtos();
+	wind_rtos();
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
@@ -130,6 +134,10 @@ void MX_FREERTOS_Init(void) {
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
   /* Create the thread(s) */
   /* definition and creation of fanetTask */
   osThreadDef(fanetTask, fanet_task, osPriorityNormal, 0, 512);
@@ -139,13 +147,14 @@ void MX_FREERTOS_Init(void) {
   osThreadDef(wireTask, wire_task, osPriorityBelowNormal, 0, 512);
   wireTaskHandle = osThreadCreate(osThread(wireTask), NULL);
 
+  /* definition and creation of windTask */
+  osThreadDef(windTask, wind_task, osPriorityNormal, 0, 512);
+  windTaskHandle = osThreadCreate(osThread(windTask), NULL);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
-  /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
-  /* USER CODE END RTOS_QUEUES */
 }
 
 /* USER CODE BEGIN Header_fanet_task */

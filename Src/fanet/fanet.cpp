@@ -22,13 +22,6 @@
 
 osMessageQId fanet_QueueID;
 
-/*
- *
- * TODO new can return NULL!!!! no exception anymore! check!
- *
- *
- */
-
 void fanet_rtos(void)
 {
 	/* Queue */
@@ -92,11 +85,11 @@ void fanet_task(void const * argument)
  */
 void *operator new(size_t size)
 {
-        void *mem = pvPortMalloc(size);
-//        if (mem)
-            return mem;
-//        else
-//            throw std::bad_alloc();
+	void *mem = pvPortMalloc(size);
+//	if(mem != nullptr)
+		return mem;
+//	else
+//		throw std::bad_alloc();
 }
 
 //void *operator new(std::size_t size, const std::nothrow_t &)

@@ -63,8 +63,9 @@ int16_t FanetFrameService::serialize(uint8_t*& buffer)
 		return -1;
 
 	/* mandatory subheader, position */
-	header &= 0x7F;
+	header &= 0x7B;
 	header |= (!!hasInet)<<FANETFRAMESERVICE_INET;
+	header |= (!!strlen(fanet.key))<<FANETFRAMESERVICE_REMOTECFGSUPPORT;
 	payload[0] = header;
 	coord2payload_absolut(fanet.position, &payload[1]);
 
