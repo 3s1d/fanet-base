@@ -204,10 +204,6 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
  * 		[humidity(percent,float)],[pressure(hPa,float)] */
 void Serial_Interface::fanet_cmd_weather(char *ch_str)
 {
-#if defined(DEBUG) && (SERIAL_debug_mode > 0)
-	printf("### Packet %s\n", ch_str);
-#endif
-
 	/* remove \r\n and any spaces*/
 	char *ptr = strchr(ch_str, '\r');
 	if(ptr == nullptr)
@@ -388,6 +384,8 @@ void Serial_Interface::fanet_cmd_weather(char *ch_str)
 	/* pass to mac */
 	if(fmac.transmit(frm) == 0)
 	{
+		fanet.manualServiceSent();
+
 		if(!sx1272_isArmed())
 			print_line(FN_REPLYM_PWRDOWN);
 		else

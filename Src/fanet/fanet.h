@@ -31,6 +31,11 @@ void fanet_task(void const * argument);
 
 #define FANET_NEIGHBOR_SIZE			64
 
+/* service */
+#define FANET_TYPE4_MINTAU_MS			250
+#define	FANET_TYPE4_TAU_MS			20000
+
+/* remote configuration, replayed data */
 #define	FANET_TYPE6_MINTAU_MS			250
 #define	FANET_TYPE6_TAU_MS			20000
 #define FANET_TYPE6_PAUSE_MS			180000
@@ -76,6 +81,7 @@ private:
 	/* broadcasts */
 	uint32_t nextRfBroadcast = 0;
 	uint16_t nextRfIdx = 13-1;
+	uint32_t nextServiceBroadcast = 0;
 
 	/* ACK buffer */
 	FanetMacAddr ackAddr;
@@ -85,6 +91,9 @@ private:
 	/* position, all in degree */
 	Coordinate3D _position = Coordinate3D();
 	float _heading = 0.0f;
+
+	/* manual / serial */
+	uint32_t noAutoServiceBefore = 0;
 
 	/* remote */
 	void loadKey(void);
@@ -100,19 +109,18 @@ public:
 	const char *key = _key;
 	const Coordinate3D &position;
 	const float &heading;
-	rpf_t replayFeature[13];				//will be initialized upon constructor
+	rpf_t replayFeature[13];					//will be initialized upon constructor
 
 	Fanet();
 
 	/* device -> air */
-	bool isBroadcastReady(void);
+	FanetFrame *broadcastIntended(void);
 	void broadcastSuccessful(FanetFrame::FrameType_t type);
-	FanetFrame *getFrame();
 
 	/* air -> device */
 	void handleAcked(bool ack, FanetMacAddr &addr);
 	void handleFrame(FanetFrame *frm);
-	void handle(void);				//general stuff
+	void handle(void);						//general stuff
 
 	/* neighbors */
 	std::list<FanetNeighbor*> &getNeighbors_locked(void);
@@ -122,6 +130,9 @@ public:
 	void cleanNeighbors(void);
 	bool isNeighbor(FanetMacAddr & addr);
 	uint16_t numNeighbors(void);
+
+	/* manual / serial */
+	void manualServiceSent(void);
 
 	/* ACK */
 	void ackReset(void) {ackAddr = FanetMacAddr(); ackRes = WAIT; }

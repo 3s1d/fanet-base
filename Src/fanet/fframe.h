@@ -98,7 +98,7 @@ public:
 	FanetFrame();
 	virtual ~FanetFrame() { if(payload != nullptr) delete [] payload; }		//virtual: calls inherited class and than this here
 
-	/* deserialize packet */
+	/* de-serialize packet */
 	FanetFrame(int16_t length, uint8_t *data);
 
 	void setType(FrameType_t newType) { _type = newType; }

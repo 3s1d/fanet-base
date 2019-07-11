@@ -58,7 +58,7 @@
 /* USER CODE BEGIN Includes */     
 #include <stdio.h>
 #include "fanet/fanet.h"
-#include "sensor/wind.h"
+#include "hal/wind.h"
 #include "serial/serial_interface.h"
 /* USER CODE END Includes */
 

@@ -14,6 +14,7 @@
 #define FANETFRAMESERVICE_HUMIDITY		4
 #define FANETFRAMESERVICE_PRESSURE		3
 #define FANETFRAMESERVICE_REMOTECFGSUPPORT	2
+#define FANETFRAMESERVICE_SOC			1
 
 #include "config.h"
 #include "../fframe.h"
@@ -30,17 +31,21 @@ private:
 	float windGust_kmph = 0.0f;
 	float relHumidity = 0.0f;
 	float preasure_hPa = 0.0f;
+	float soc_percent = 0.0f;
 public:
 	/* state */
 	bool hasInet = false;
+	bool remoteCfgSupported = false;
 
-	FanetFrameService() : FanetFrame() { _type = FanetFrame::TYPE_SERVICE; }
+	FanetFrameService(bool hasInet = false, bool remoteCfgSupported = false) : FanetFrame(), hasInet(hasInet), remoteCfgSupported(remoteCfgSupported)
+		{ _type = FanetFrame::TYPE_SERVICE; }
 
 	/* define state */
 	void setTemperature(float temp);
 	void setWind(float dir, float speed, float gust);
 	void setHumidity(float relHum);
 	void setPressure(float hPa);
+	void setSoc(float percent);
 
 	/* handle payload */
 	int16_t serialize(uint8_t*& buffer);

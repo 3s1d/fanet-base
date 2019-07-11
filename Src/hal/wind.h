@@ -95,6 +95,8 @@ public:
 
 };
 
+extern Wind wind;
+
 #endif
 
 #endif /* WINDSOCK_WINDSENSOR_H_ */

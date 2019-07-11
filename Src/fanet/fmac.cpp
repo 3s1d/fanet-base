@@ -78,6 +78,7 @@ bool FanetMac::writeAddr(FanetMacAddr addr)
 	uint64_t addr_container = MAC_ADDR_MAGIC | (addr.manufacturer&0xFF)<<16 | (addr.id&0xFFFF);
 
 	HAL_FLASH_Unlock();
+	__HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
 	HAL_StatusTypeDef flash_ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, MAC_ADDR_BASE, addr_container);
 	HAL_FLASH_Lock();
 
@@ -242,16 +243,11 @@ void FanetMac::handleTx()
 	/* this breaks the layering. however, this approach is much more efficient as the app layer now has a much higher priority */
 	FanetFrame* frm;
 	bool appTx = false;
-	if (myApp != nullptr && myApp->isBroadcastReady())
+	if (myApp != nullptr && (frm = myApp->broadcastIntended()) != nullptr)
 	{
-		/* the app wants to broadcast the glider state */
-		frm = myApp->getFrame();
-		if (frm == NULL)
-			return;
-
+		/* app wants to broadcast */
 		/* set forward bit in case of low neighbor count */
-		//todo?? set forward bit only if no inet base station is available, this MAY break the layers
-		frm->forward = myApp->numNeighbors() <= MAC_MAXNEIGHBORS_4_TRACKING_2HOP;
+		frm->forward = myApp->numNeighbors() <= MAC_MAXNEIGHBORS_FOR_2HOP;
 
 		appTx = true;
 	}

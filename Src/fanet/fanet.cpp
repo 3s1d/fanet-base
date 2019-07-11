@@ -11,6 +11,8 @@
 #include "minmax.h"
 #include "print.h"
 
+#include "../hal/power.h"
+#include "../hal/wind.h"
 #include "../misc/rnd.h"
 #include "../misc/sha1.h"
 #include "../serial/serial_interface.h"
@@ -18,6 +20,7 @@
 #include "fanet.h"
 #include "frame/fname.h"
 #include "frame/fgndtracking.h"
+#include "frame/fservice.h"
 #include "frame/ftracking.h"
 
 osMessageQId fanet_QueueID;
@@ -49,6 +52,7 @@ void fanet_task(void const * argument)
 		serialInt.print_line(FN_REPLYE_RADIO_FAILED);
 		osDelay(1000);
 	}
+	//fmac.writeAddr(FanetMacAddr(1, 2));
 
 	osThreadYield();
 	serialInt.print_line(FN_REPLYM_INITIALIZED);
@@ -105,6 +109,43 @@ void operator delete(void *p)
 
 void Fanet::handle(void)
 {
+#if 0
+	pwr management
+
+	/* turn on rf chip */
+	if(is_broadcast_ready(fmac.numNeighbors()))
+	{
+		/* enabling radio chip */
+		if(!sx1272_isArmed())
+		{
+			last_framecount = framecount;
+#if defined(DEBUG) || defined(DEBUG_SEMIHOSTING)
+			printf("%u en (%d)\n", (unsigned int)HAL_GetTick(), pwr_suf);
+#endif
+		}
+		sx1272_setArmed(true);
+		last_ready_time = HAL_GetTick();
+	}
+	else if((last_ready_time + WSAPP_RADIO_UPTIME < HAL_GetTick() || !power_sufficiant()) &&
+			fmac.tx_queue_depleted() && framecount != last_framecount)
+	{
+		/* disabling radio chip */
+#if defined(DEBUG) || defined(DEBUG_SEMIHOSTING)
+		if(sx1272_isArmed())
+			printf("%u dis\n", (unsigned int)HAL_GetTick());
+#endif
+		sx1272_setArmed(false);
+	}
+
+	required???
+	/* sleep for 10ms */
+	//note: tick will wake us up every 1ms
+	for(int i=0; i<10; i++)
+		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+
+#endif
+
+
 	/* broadcast name */
 //	if(settings.broadcastName && nextNameBroadcast < osKernelSysTick() && strlen(pilot.name))
 //	{
@@ -114,6 +155,8 @@ void Fanet::handle(void)
 
 //		nextNameBroadcast = osKernelSysTick() + FANET_TYPE2_TAU_MS;
 //	}
+
+
 
 	/* remove unavailable nodes */
 	fanet.cleanNeighbors();
@@ -215,11 +258,28 @@ uint16_t Fanet::numNeighbors(void)
 	return nn;
 }
 
-bool Fanet::isBroadcastReady(void)
+FanetFrame *Fanet::broadcastIntended(void)
 {
-	/* time for next broadcast? */
-	if(nextRfBroadcast > osKernelSysTick())
-		return false;
+	const uint32_t current = osKernelSysTick();
+
+	/* time for next service broadcast? */
+	if(nextServiceBroadcast <= current)
+	{
+		FanetFrameService *sfrm = new FanetFrameService(false, strlen(fanet.key)>0);		//no Inet but remoteCfg if key present
+		debug_printf("tx service\n");
+		if(wind.sensorPresent)
+			sfrm->setWind(wind.getDir_2min_avg(), wind.getSpeed_2min_avg(), wind.getSpeed_max());
+		sfrm->setSoc(power::isSufficiant() ? 100.0f : 30.0f);
+
+		/* in case of a busy channel, ensure that frames from the tx fifo gets also a change */
+		nextServiceBroadcast = current + FANET_TYPE4_MINTAU_MS;
+
+		return sfrm;
+	}
+
+	/* time for next replay broadcast? */
+	if(nextRfBroadcast > current)
+		return nullptr;
 
 	/* not valid replay feature -> find next */
 	if(replayFeature[nextRfIdx].type == 0xFF)
@@ -239,17 +299,43 @@ bool Fanet::isBroadcastReady(void)
 		if(replayFeature[nextRfIdx].type == 0xFF)
 		{
 			/* just in case, delay eval by 10sec */
-			nextRfBroadcast = osKernelSysTick() + 10000;
-			return false;
+			nextRfBroadcast = current + 10000;
+			return nullptr;
 		}
 	}
 
-	return true;
+	/* in case of a busy channel, ensure that frames from the tx fifo gets also a change */
+	nextRfBroadcast = current + FANET_TYPE6_MINTAU_MS;
+
+	/* broadcast replay */
+	FanetFrame *frm = new FanetFrame();
+	debug_printf("tx replay type:%x (idx:%d)\n", replayFeature[nextRfIdx].type, nextRfIdx);
+
+	/* allow for replay/alternative information */
+	//note: we'll might send crap if somebody altered the content since isBroadcastReady(). Thou' can't stop here...
+	frm->setType(static_cast<FanetFrame::FrameType_t>(replayFeature[nextRfIdx].type));
+	frm->payloadLength = replayFeature[nextRfIdx].payloadLength;
+	frm->payload = new uint8_t[frm->payloadLength];
+	memcpy(frm->payload, replayFeature[nextRfIdx].payload, frm->payloadLength);
+
+	return frm;
 }
 
 void Fanet::broadcastSuccessful(FanetFrame::FrameType_t type)
 {
-	nextRfBroadcast = osKernelSysTick() + FANET_TYPE6_TAU_MS;
+	const uint32_t current = osKernelSysTick();
+
+	/* service frame */
+	if(type == FanetFrame::TYPE_SERVICE && nextServiceBroadcast-current < FANET_TYPE4_MINTAU_MS) 	//shortly released before
+	{
+		nextServiceBroadcast = current + (numNeighbors()/20+1) * FANET_TYPE4_TAU_MS * (!!power::isSufficiant() + 1);
+		return;
+	}
+
+	//actually replayFeature[nextRfIdx].type == type... could be tested.
+
+	/* Replay Frame */
+	nextRfBroadcast = current + FANET_TYPE6_TAU_MS * (!!power::isSufficiant() + 1);
 
 	/* find next index */
 	for(uint16_t i=0; i<NELEM(replayFeature); i++)
@@ -264,25 +350,6 @@ void Fanet::broadcastSuccessful(FanetFrame::FrameType_t type)
 		if(replayFeature[nextRfIdx].type != 0xFF)
 			break;
 	}
-}
-
-//note: we must return a frame here as we already advertised that we are ready
-FanetFrame *Fanet::getFrame(void)
-{
-	debug_printf("Broadcast type:%x (idx:%d)\n", replayFeature[nextRfIdx].type, nextRfIdx);
-
-	/* broadcast tracking information */
-	//note: filled upon serialize
-	FanetFrame *frm = new FanetFrame();
-
-	/* allow for replay/alternative information */
-	//note: we'll might send crap if somebody altered the content since isBroadcastReady(). Thou' can't stop here...
-	frm->setType(static_cast<FanetFrame::FrameType_t>(replayFeature[nextRfIdx].type));
-	frm->payloadLength = replayFeature[nextRfIdx].payloadLength;
-	frm->payload = new uint8_t[frm->payloadLength];
-	memcpy(frm->payload, replayFeature[nextRfIdx].payload, frm->payloadLength);
-
-	return frm;
 }
 
 bool Fanet::rcPosition(uint8_t *payload, uint16_t payload_length)
@@ -625,6 +692,11 @@ bool Fanet::writeReplayFeature(uint16_t num, uint8_t *payload, uint16_t len)
 void Fanet::loadReplayFeatures(void)
 {
 	memcpy(replayFeature, (void *)(__IO uint64_t*)FANET_RPADDR_BASE, sizeof(replayFeature));
+}
+
+void Fanet::manualServiceSent(void)
+{
+	noAutoServiceBefore = osKernelSysTick() + 180000;						//disable for 3min
 }
 
 

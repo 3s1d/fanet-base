@@ -31,7 +31,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "fanet/fanet.h"
-#include "sensor/wind.h"
+#include "hal/wind.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

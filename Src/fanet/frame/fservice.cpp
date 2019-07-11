@@ -42,12 +42,21 @@ void FanetFrameService::setPressure(float hPa)
 	header |= 1<<FANETFRAMESERVICE_PRESSURE;
 }
 
+void FanetFrameService::setSoc(float percent)
+{
+	soc_percent = percent;
+
+	header |= 1<<FANETFRAMESERVICE_SOC;
+}
+
 
 /* handle payload */
 int16_t FanetFrameService::serialize(uint8_t*& buffer)
 {
 	/* prepare storage */
-	payloadLength = 1 + 6;
+	payloadLength = 1;
+	if(header & 0x7B)					//position required
+		payloadLength += 6;
 	if(header & (1<<FANETFRAMESERVICE_TEMP))
 		payloadLength++;
 	if(header & (1<<FANETFRAMESERVICE_WIND))
@@ -56,6 +65,8 @@ int16_t FanetFrameService::serialize(uint8_t*& buffer)
 		payloadLength++;
 	if(header & (1<<FANETFRAMESERVICE_PRESSURE))
 		payloadLength+=2;
+	if(header & (1<<FANETFRAMESERVICE_SOC))
+		payloadLength++;
 	if(payload != nullptr)
 		delete [] payload;
 	payload = new uint8_t[payloadLength];
@@ -65,9 +76,11 @@ int16_t FanetFrameService::serialize(uint8_t*& buffer)
 	/* mandatory subheader, position */
 	header &= 0x7B;
 	header |= (!!hasInet)<<FANETFRAMESERVICE_INET;
-	header |= (!!strlen(fanet.key))<<FANETFRAMESERVICE_REMOTECFGSUPPORT;
+	header |= (!!remoteCfgSupported)<<FANETFRAMESERVICE_REMOTECFGSUPPORT;
 	payload[0] = header;
 	coord2payload_absolut(fanet.position, &payload[1]);
+
+	//extended header currently not supported
 
 	/* optional stuff */
 	uint16_t idx = 1 + 6;
@@ -109,6 +122,10 @@ int16_t FanetFrameService::serialize(uint8_t*& buffer)
 		uint16_t p = constrain((unsigned int)roundf((preasure_hPa-430.0f)*10.0f), 0U, 65535U);
 		*((uint16_t*) &payload[idx]) = p;
 		idx += 2;
+	}
+	if(header & (1<<FANETFRAMESERVICE_SOC))
+	{
+		payload[idx++] = static_cast<uint8_t>(soc_percent * 15.0f / 100.0f);
 	}
 
 	return FanetFrame::serialize(buffer);

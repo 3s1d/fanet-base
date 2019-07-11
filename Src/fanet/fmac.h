@@ -58,7 +58,7 @@
 /*
  * Number defines
  */
-#define MAC_MAXNEIGHBORS_4_TRACKING_2HOP	5
+#define MAC_MAXNEIGHBORS_FOR_2HOP		6
 #define MAC_CODING48_THRESHOLD			8
 
 #define MAC_FRAME_LENGTH			254
@@ -100,9 +100,8 @@ public:
 	virtual ~Fapp() { }
 
 	/* device -> air */
-	virtual bool isBroadcastReady(void) = 0;
+	virtual FanetFrame *broadcastIntended(void) = 0;
 	virtual void broadcastSuccessful(FanetFrame::FrameType_t type) = 0;
-	virtual FanetFrame *getFrame() = 0;
 
 	/* air -> device */
 	virtual void handleAcked(bool ack, FanetMacAddr &addr) = 0;
