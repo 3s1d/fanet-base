@@ -64,7 +64,7 @@ void wire_task(void const * argument);
 #define CMD_CONFIG			'C'
 #define CMD_MODE			'M'
 #define CMD_NEIGHBOR			'N'
-#define CMD_PROMISCUOUS			'P'
+#define CMD_PRINT2CONSOLE		'P'
 #define CMD_WEATHER			'W'
 #define CMD_DUMP			'D'
 
@@ -130,10 +130,11 @@ void wire_task(void const * argument);
  *
  * Address: 		#FNA manufacturer(hex),id(hex)								note: w/o address is returned
  * Neighbors:		#FNN											note: one neighbor per line
- * Promiscuous:		#FNP promiscuous(0..1)
+ * Print frame:		#FNP toConsole (0..2)
  *
  * Remote Key:		#FRK key
  * Replay Feature:	#FRR num(hex),payload									note: #FRR num,FF -> clean
+ * TODO geofence
  *
  * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload
  *
@@ -183,7 +184,7 @@ public:
 	void begin(serial_t *serial);
 
 	/* redirected from app */
-	void handle_frame(FanetFrame *frm);
+	void handleFrame(FanetFrame *frm);
 	void handle_acked(bool ack, FanetMacAddr &addr);
 
 	void handle_rx(void);

@@ -17,6 +17,7 @@
 #include "usart.h"
 
 #include "../fanet/fanet.h"
+#include "../fanet/frame/fremotecfg.h"
 #include "../fanet/frame/fservice.h"
 #include "../fanet/fmac.h"
 #include "../fanet/sx1272.h"
@@ -433,13 +434,13 @@ void Serial_Interface::fanet_cmd_promiscuous(char *ch_str)
 	{
 		/* report armed state */
 		char buf[64];
-		snprintf(buf, sizeof(buf), "%s%c %X\n", FANET_CMD_START, CMD_PROMISCUOUS, fanet.promiscuous);
+		snprintf(buf, sizeof(buf), "%s%c %X\n", FANET_CMD_START, CMD_PRINT2CONSOLE, fanet.frameToConsole);
 		print(buf);
 		return;
 	}
 
 	/* set status */
-	fanet.promiscuous = !!atoi(ch_str);
+	fanet.setFrameToConsole(atoi(ch_str));
 	print_line(FN_REPLY_OK);
 }
 
@@ -497,6 +498,8 @@ void Serial_Interface::fanet_cmd_dump(char *ch_str)
 		//note: 0xff -> no tracking received so far
 		if(neighbor->isAirborne())						//aircraft/status typ fit into lower 4bit -> 2bits free
 			buffer[idx++] = neighbor->aircraft | 0x40;
+		else if(neighbor->status == FanetDef::SERVICE)
+			buffer[idx++] = 0x80;
 		else
 			buffer[idx++] = neighbor->status | 0xC0;
 
@@ -565,7 +568,7 @@ void Serial_Interface::fanet_cmd_eval(char *str)
 	case CMD_NEIGHBOR:
 		fanet_cmd_neighbor(&str[strlen(FANET_CMD_START) + 1]);
 		break;
-	case CMD_PROMISCUOUS:
+	case CMD_PRINT2CONSOLE:
 		fanet_cmd_promiscuous(&str[strlen(FANET_CMD_START) + 1]);
 		break;
 	default:
@@ -674,7 +677,7 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 		}
 		buf[i] = strtol(sstr,  NULL,  16);
 	}
-	if(fanet.writeReplayFeature(num, buf, strlen(p)/2) == true)
+	if(FanetFrameRemoteConfig::replayFeature(num, buf, strlen(p)/2) == true)
 		print_line(FR_REPLY_OK);
 	else
 		print_line(FR_REPLYE_WRITEFAILED);
@@ -908,7 +911,7 @@ void Serial_Interface::handle_acked(bool ack, FanetMacAddr &addr)
 	print(buf);
 }
 
-void Serial_Interface::handle_frame(FanetFrame *frm)
+void Serial_Interface::handleFrame(FanetFrame *frm)
 {
 	if(myserial == NULL || frm == NULL)
 		return;

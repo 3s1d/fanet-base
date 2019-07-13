@@ -16,7 +16,6 @@
 #define FANETFRAMESERVICE_REMOTECFGSUPPORT	2
 #define FANETFRAMESERVICE_SOC			1
 
-#include "config.h"
 #include "../fframe.h"
 
 class FanetFrameService : public FanetFrame

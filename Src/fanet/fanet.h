@@ -37,13 +37,8 @@ void fanet_task(void const * argument);
 
 /* remote configuration, replayed data */
 #define	FANET_TYPE6_MINTAU_MS			250
-#define	FANET_TYPE6_TAU_MS			20000
+#define	FANET_TYPE6_TAU_MS			30000
 #define FANET_TYPE6_PAUSE_MS			180000
-
-#define FANET_RC_ACK				0
-#define FANET_RC_POSITION			2
-#define FANET_RC_REPLAY_LOWER			3
-#define FANET_RC_REPLAY_UPPER			15
 
 #define FLASH_PAGESIZE				2048
 #define FANET_KEYADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 2)
@@ -53,14 +48,18 @@ void fanet_task(void const * argument);
 #define FANET_RPADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 4)
 #define FANET_RPADDR_BASE			(FLASH_BASE + FANET_RPADDR_PAGE*FLASH_PAGESIZE)
 
+#define FANET_KEY_SIZE				16
+
 #include "fmac.h"
 
 typedef struct
 {
 	uint8_t type;
 	uint8_t payloadLength;
-	uint8_t payload[150];
-} rpf_t;					//note: size has to divide'able by 8 AND sizeof(rpf_t) <= FLASH_PAGESIZE/13
+	uint8_t windSector;
+	uint8_t padding;
+	uint8_t payload[132];
+} __attribute__((packed)) rpf_t;			//note: size has to divide'able by 8 AND sizeof(rpf_t) <= FLASH_PAGESIZE/12
 
 
 class Fanet : public Fapp
@@ -86,7 +85,7 @@ private:
 	/* ACK buffer */
 	FanetMacAddr ackAddr;
 	FanetAckRes_t ackRes = WAIT;
-	char _key[16] = { '\0' };
+	char _key[FANET_KEY_SIZE] = { '\0' };
 
 	/* position, all in degree */
 	Coordinate3D _position = Coordinate3D();
@@ -94,22 +93,20 @@ private:
 
 	/* manual / serial */
 	uint32_t noAutoServiceBefore = 0;
+	int16_t _frameToConsole = 0;										//0: false, 1: true, 2: promiscuous
 
 	/* remote */
 	void loadKey(void);
 	void loadPosition(void);
 	void loadReplayFeatures(void);
-	bool writeReplayFeatures(void);
-
-	bool rcPosition(uint8_t *payload, uint16_t payload_length);
-	bool decodeRemoteConfig(FanetFrame *frm);
 
 public:
-	bool promiscuous = false;
 	const char *key = _key;
 	const Coordinate3D &position;
 	const float &heading;
-	rpf_t replayFeature[13];					//will be initialized upon constructor
+	rpf_t replayFeature[12];										//will be initialized upon constructor
+
+	const int16_t &frameToConsole;
 
 	Fanet();
 
@@ -120,7 +117,7 @@ public:
 	/* air -> device */
 	void handleAcked(bool ack, FanetMacAddr &addr);
 	void handleFrame(FanetFrame *frm);
-	void handle(void);						//general stuff
+	void handle(void);											//general stuff
 
 	/* neighbors */
 	std::list<FanetNeighbor*> &getNeighbors_locked(void);
@@ -132,7 +129,8 @@ public:
 	uint16_t numNeighbors(void);
 
 	/* manual / serial */
-	void manualServiceSent(void);
+	void manualServiceSent(void) { noAutoServiceBefore = osKernelSysTick() + 180000; }			//disable for 3min
+	void setFrameToConsole(int16_t what) { fmac.promiscuous = (what == 2); /* || geofoarwrding */ _frameToConsole = what;}
 
 	/* ACK */
 	void ackReset(void) {ackAddr = FanetMacAddr(); ackRes = WAIT; }
@@ -141,7 +139,7 @@ public:
 	/* remote config */
 	bool writeKey(char *newKey);
 	bool writePosition(Coordinate3D newPos, float newHeading);
-	bool writeReplayFeature(uint16_t num, uint8_t *payload, uint16_t len);
+	bool writeReplayFeatures(void);
 };
 
 extern Fanet fanet;

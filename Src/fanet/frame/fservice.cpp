@@ -7,6 +7,7 @@
 
 #include <cmath>
 
+#include "common.h"
 #include "constrain.h"
 
 #include "../fanet.h"
@@ -133,7 +134,40 @@ int16_t FanetFrameService::serialize(uint8_t*& buffer)
 
 void FanetFrameService::decode(const uint8_t *payload, const uint16_t len, FanetNeighbor *neighbor)
 {
-	//not implemented/interested for now
+	if(neighbor == nullptr || payload == nullptr || len == 0)
+		return;
+
+	/* minimalistic implementation */
+	//note: we squeeze it into FanetNeighbor
+	uint16_t payloadPos = 1;
+
+	/* process header */
+	if(payload[0] & (1<<0))					//extended header
+	{
+		payloadPos++;
+	}
+
+	/* position */
+	if(payloadPos+6 > len)
+		return;
+
+	neighbor->setTrackingType(FanetDef::SERVICE);
+
+	Coordinate2D pos;
+	payload2coord_absolute(&payload[payloadPos], pos);
+	payloadPos += 6;
+	neighbor->setPosition(pos);
+
+	/* wind */
+	if(payload[0] & (1<<5))
+	{
+		if(payloadPos+3 > len)
+			return;
+
+		neighbor->heading_rad = (((float)payload[payloadPos++])/256.0f) * M_2PI_f;
+		neighbor->speed_kmh = payload2ufloat(payload[payloadPos++], 5.0f) * 0.2f;
+		neighbor->climb_mps = payload2ufloat(payload[payloadPos++], 5.0f) * 0.2f / 10.0f;
+	}
 }
 
 

@@ -42,9 +42,9 @@ public:
 	/* additional 3D tracking here */
 	//note: could be extrapolated from 2d tracking as well
 	uint32_t lastTrackUpdate = 0;
-	float climb_mps = 0.0f;
-	float speed_kmh = 0.0f;
-	float heading_rad = 0.0f;
+	float climb_mps = 0.0f;					//wind gust / 10 [km/h] 4 service
+	float speed_kmh = 0.0f;					//wind speed 4 service
+	float heading_rad = 0.0f;				//wind direction 4 service
 
 	/* message */
 	char *msg = nullptr;

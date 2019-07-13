@@ -142,7 +142,8 @@ private:
 	void handleRx();
 
 public:
-	bool doforward = true;
+	bool doForward = true;
+	bool promiscuous = false;
 	const FanetMacAddr &addr;
 	const bool &power;
 

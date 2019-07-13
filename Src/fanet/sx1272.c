@@ -19,8 +19,8 @@ sx_region_t sx1272_region = {.channel = 0, .dBm = 0};
 irq_callback sx1272_irq_cb = NULL;
 SPI_HandleTypeDef *sx1272_spi = NULL;
 uint32_t sx1272_last_tx_ticks = 0;
-float sx_dutycycle = 0.0f;
-float sx_airtime = 0.0f;
+//float sx_dutycycle = 0.0f;
+float sx_airtime_ms = 0.0f;
 
 #ifdef SX1272_DO_FSK
 #define SX_REG_BACKUP_POR	0
@@ -791,7 +791,7 @@ int sx1272_sendFrame(uint8_t *data, int length, uint8_t cr)
 	}
 
 	/* update air time */
-	sx_airtime += sx_expectedAirTime_ms();
+	sx_airtime_ms += sx_expectedAirTime_ms();
 
 	/* tx */
 	sx_setOpMode(LORA_TX_MODE);
@@ -845,17 +845,17 @@ int sx1272_getFrame(uint8_t *data, int max_length)
 float sx1272_get_airlimit(void)
 {
 	static uint32_t last = 0;
-	uint32_t current = HAL_GetTick();
-	uint32_t dt = current - last;
+	const uint32_t current = osKernelSysTick();
+	const uint32_t dt = current - last;
 	last = current;
 
-	/* reduce airtime by 1% */
-	sx_airtime -= dt*0.01f;
-	if(sx_airtime < 0.0f)
-		sx_airtime = 0.0f;
+	/* reduce air time by 1% for passed dt */
+	sx_airtime_ms -= dt*0.01f;
+	if(sx_airtime_ms < 0.0f)
+		sx_airtime_ms = 0.0f;
 
-	/* air time over 3min average -> 1800ms air time allowed */
-	return sx_airtime / 1800.0f;
+	/* air time average over 3min average -> 1800ms air time allowed */
+	return sx_airtime_ms / 1800.0f;
 }
 
 #ifdef SX1272_DO_FSK
@@ -930,7 +930,7 @@ int sx1272_sendFrame_FSK(sx_fsk_conf_t *conf, uint8_t *data, int num_data)
 		sx_setDio0Irq(DIO0_NONE_FSK);
 
 	/* update air time */
-	sx_airtime += sx_expectedAirTime_ms();
+	sx_airtime_ms += sx_expectedAirTime_ms();
 
 	/* start TX */
 	//note: seq: tx on start, fromtransmit -> lowpower, lowpower = seq_off (w/ init mode), start

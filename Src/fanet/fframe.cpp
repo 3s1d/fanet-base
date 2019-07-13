@@ -17,6 +17,8 @@
 #include "frame/fmsg.h"
 #include "frame/fgndtracking.h"
 #include "frame/fname.h"
+#include "frame/fremotecfg.h"
+#include "frame/fservice.h"
 #include "frame/ftracking.h"
 
 
@@ -182,18 +184,27 @@ int16_t FanetFrame::serialize(uint8_t*& buffer)
 
 void FanetFrame::decodePayload(FanetNeighbor *neighbor)
 {
-	//debug_printf("frm%d %02x:%04x\n", type, src.manufacturer, src.id);
+	//note: only decode position
 
 	if(type == TYPE_TRACKING)
 		FanetFrameTracking::decode(payload, payloadLength, neighbor);
 	else if(type == TYPE_GROUNDTRACKING)
 		FanetFrameGndTracking::decode(payload, payloadLength, neighbor);
+	else if(type == TYPE_SERVICE)
+		FanetFrameService::decode(payload, payloadLength, neighbor);
 	else if(type == TYPE_NAME)
 		FanetFrameName::decode(payload, payloadLength, neighbor);
 	else if(type == TYPE_MESSAGE)
 		FanetFrameMessage::decode(payload, payloadLength, neighbor);
+	else if(type == TYPE_REMOTECONFIG)
+		FanetFrameRemoteConfig::decode(this);
+	else if(type == TYPE_LANDMARK)
+		{ /* don't care */ }
 	else
 		debug_printf("unable to decode type %d\n", type);
+
+	//debug_printf("frm%d %02x:%04x @ %.3f,%.3f,%.f\n", type, src.manufacturer, src.id,
+	//		neighbor->pos.latitude, neighbor->pos.longitude, neighbor->pos.altitude);
 }
 
 void FanetFrame::requestAck(bool en)

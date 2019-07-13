@@ -41,6 +41,7 @@ namespace FanetDef
 
 		/* internal states */
 		AUTO = (hiking|0x8000),				//auto fallback to hiking
+		SERVICE = UINT16_MAX-1,				//for fanet neighbors
 		AIRBORNE = UINT16_MAX,				//for fanet neighbors
 	};
 }

@@ -193,7 +193,7 @@ void FanetMac::handleRx()
 		/* a relevant frame */
 		if(frm->type == FanetFrame::TYPE_ACK)
 		{
-			if (txFifo.removeDeleteAckedFrame(frm->src) && myApp != NULL)
+			if (txFifo.removeDeleteAckedFrame(frm->src) && myApp != nullptr)
 				myApp->handleAcked(true, frm->src);
 		}
 		else
@@ -203,13 +203,18 @@ void FanetMac::handleRx()
 				ack(frm);
 
 			/* forward frame to app */
-			if (myApp != NULL)
+			if (myApp != nullptr)
 				myApp->handleFrame(frm);
 		}
 	}
+	else if(promiscuous && myApp != nullptr)
+	{
+		/* not a frame that was intended for us! */
+		myApp->handleFrame(frm);
+	}
 
 	/* Forward frame */
-	if (doforward && frm->forward && txFifo.size() < FANETMACFIFO_SIZE - 3 && frm->rssi <= MAC_FORWARD_MAX_RSSI_DBM
+	if (doForward && frm->forward && txFifo.size() < FANETMACFIFO_SIZE - 3 && frm->rssi <= MAC_FORWARD_MAX_RSSI_DBM
 			&& (frm->dest == FanetMacAddr() || (myApp!=nullptr&& myApp->isNeighbor(frm->dest))) && sx1272_get_airlimit() < 0.5f)
 	{
 #if defined(DEBUG) && MAC_debug_mode > 1

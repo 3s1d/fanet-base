@@ -90,16 +90,8 @@ void fanet_task(void const * argument)
 void *operator new(size_t size)
 {
 	void *mem = pvPortMalloc(size);
-//	if(mem != nullptr)
 		return mem;
-//	else
-//		throw std::bad_alloc();
 }
-
-//void *operator new(std::size_t size, const std::nothrow_t &)
-//{
-//	return pvPortMalloc(size);
-//}
 
 void operator delete(void *p)
 {
@@ -156,7 +148,10 @@ void Fanet::handle(void)
 //		nextNameBroadcast = osKernelSysTick() + FANET_TYPE2_TAU_MS;
 //	}
 
-
+//todo disable forward, promiscous enabed if geo-based forward rule
+fmac.doForward = false;
+fmac.promiscuous = true;
+//todo
 
 	/* remove unavailable nodes */
 	fanet.cleanNeighbors();
@@ -352,26 +347,7 @@ void Fanet::broadcastSuccessful(FanetFrame::FrameType_t type)
 	}
 }
 
-bool Fanet::rcPosition(uint8_t *payload, uint16_t payload_length)
-{
-	/* remove our position */
-	if(payload_length == 0)
-		return writePosition(Coordinate3D(), 0.0f);
-
-	/* to little information */
-	if(payload_length < 9)
-		return false;
-
-	/* update position */
-	Coordinate2D nPos;
-	FanetFrame::payload2coord_absolute(payload, nPos);
-	int16_t alt = ((uint16_t*)payload)[3]&0x7FF;
-	if(((uint16_t*)payload)[3] & 1<<11)
-		alt*=4;
-	float head = (((float)payload[8])/256.0f) * 360.0f;
-	return writePosition(Coordinate3D(nPos.latitude, nPos.longitude, alt), head);
-}
-
+#if 0
 //note: decoded here as it heavily interacts w/ class Fanet
 bool Fanet::decodeRemoteConfig(FanetFrame *frm)
 {
@@ -452,10 +428,11 @@ bool Fanet::decodeRemoteConfig(FanetFrame *frm)
 
 	return true;
 }
+#endif
 
 void Fanet::handleAcked(bool ack, FanetMacAddr &addr)
 {
-	if(promiscuous)
+	if(frameToConsole)
 		serialInt.handle_acked(ack, addr);
 
 	ackRes = ack ? ACK : NACK;
@@ -465,31 +442,39 @@ void Fanet::handleAcked(bool ack, FanetMacAddr &addr)
 
 void Fanet::handleFrame(FanetFrame *frm)
 {
-	if(promiscuous)
-		serialInt.handle_frame(frm);
+	if(frameToConsole)
+		serialInt.handleFrame(frm);
 
-	/* remote configuration frame */
-	if(decodeRemoteConfig(frm) == true)
-		return;
-
-	osMutexWait(neighborMutex, osWaitForever);
-
-	/* find neighbor */
-	//note: prev called seenNeighbor() which ensures neighbor is already known
-	FanetNeighbor *fn = nullptr;
-	for(auto *neighbor : neighbors)
+	/* decode */
+	if(frm->dest == fmac.addr || frm->dest == FanetMacAddr())
 	{
-		if(neighbor->addr == frm->src)
+		osMutexWait(neighborMutex, osWaitForever);
+
+		/* find neighbor */
+		//note: prev called seenNeighbor() which ensures neighbor is already known
+		FanetNeighbor *fn = nullptr;
+		for(auto *neighbor : neighbors)
 		{
-			fn = neighbor;
-			break;
+			if(neighbor->addr == frm->src)
+			{
+				fn = neighbor;
+				break;
+			}
 		}
+
+		/* decode information */
+		frm->decodePayload(fn);
+
+		osMutexRelease(neighborMutex);
 	}
+	else
+	{
+		/* not directly frame specifically for us. geoforward? */
 
-	/* decode information */
-	frm->decodePayload(fn);
+		//todo, inside areas required....
+		//todo dynamic replay features....
 
-	osMutexRelease(neighborMutex);
+	}
 }
 
 /*
@@ -666,41 +651,12 @@ bool Fanet::writeReplayFeatures(void)
 	return true;
 }
 
-bool Fanet::writeReplayFeature(uint16_t num, uint8_t *payload, uint16_t len)
-{
-	if(num >= NELEM(replayFeature))
-		return false;
-
-	if(len < 1)
-	{
-		/* remove feature */
-		replayFeature[num].type = 0xFF;		//empty
-		replayFeature[num].payloadLength = 0;
-
-		return writeReplayFeatures();
-	}
-
-	/* copy feature */
-	replayFeature[num].type = payload[0];
-	replayFeature[num].payloadLength = len-1;
-	memcpy(replayFeature[num].payload, &payload[1],
-			std::min((uint16_t) replayFeature[num].payloadLength, (uint16_t) sizeof(replayFeature[num].payload)));
-
-	return writeReplayFeatures();
-}
-
 void Fanet::loadReplayFeatures(void)
 {
 	memcpy(replayFeature, (void *)(__IO uint64_t*)FANET_RPADDR_BASE, sizeof(replayFeature));
 }
 
-void Fanet::manualServiceSent(void)
-{
-	noAutoServiceBefore = osKernelSysTick() + 180000;						//disable for 3min
-}
-
-
-Fanet::Fanet() : Fapp(), position(_position), heading(_heading)
+Fanet::Fanet() : Fapp(), position(_position), heading(_heading), frameToConsole(_frameToConsole)
 {
 	/* read configuration */
 	loadKey();
@@ -709,3 +665,4 @@ Fanet::Fanet() : Fapp(), position(_position), heading(_heading)
 }
 
 Fanet fanet = Fanet();
+
