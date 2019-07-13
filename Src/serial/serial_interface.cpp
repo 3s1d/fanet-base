@@ -71,7 +71,7 @@ void Serial_Interface::fanet_cmd_addr(char *ch_str)
 		return;
 	}
 
-	if(strstr(ch_str, "ERASE!") != NULL)
+	if(strstr(ch_str, "ERASE!") != nullptr)
 	{
 		/* erase config */
 		//must never be used by the end user
@@ -84,9 +84,9 @@ void Serial_Interface::fanet_cmd_addr(char *ch_str)
 
 	/* address */
 	char *p = (char *)ch_str;
-	int manufacturer = strtol(p, NULL, 16);
+	int manufacturer = strtol(p, nullptr, 16);
 	p = strchr(p, SEPARATOR)+1;
-	int id = strtol(p, NULL, 16);
+	int id = strtol(p, nullptr, 16);
 
 	if(manufacturer<=0 || manufacturer >= 0xFE || id <= 0 || id >= 0xFFFF)
 	{
@@ -138,16 +138,16 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 
 	/* header */
 	char *p = (char *)ch_str;
-	frm->setType(static_cast<FanetFrame::FrameType_t>(strtol(p, NULL, 16)));
+	frm->setType(static_cast<FanetFrame::FrameType_t>(strtol(p, nullptr, 16)));
 	p = strchr(p, SEPARATOR)+1;
-	frm->dest.manufacturer = strtol(p, NULL, 16);
+	frm->dest.manufacturer = strtol(p, nullptr, 16);
 	p = strchr(p, SEPARATOR)+1;
-	frm->dest.id = strtol(p, NULL, 16);
+	frm->dest.id = strtol(p, nullptr, 16);
 	p = strchr(p, SEPARATOR)+1;
-	frm->forward = !!strtol(p, NULL, 16);
+	frm->forward = !!strtol(p, nullptr, 16);
 	p = strchr(p, SEPARATOR)+1;
 	/* ACK required */
-	if(strtol(p, NULL, 16))
+	if(strtol(p, nullptr, 16))
 	{
 		frm->ackRequested = frm->forward?FRM_ACK_TWOHOP:FRM_ACK_SINGLEHOP;
 		frm->numTx = MAC_TX_RETRANSMISSION_RETRYS;
@@ -160,7 +160,7 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 
 	/* payload */
 	p = strchr(p, SEPARATOR)+1;
-	frm->payloadLength = strtol(p, NULL, 16);
+	frm->payloadLength = strtol(p, nullptr, 16);
 	frm->payload = new uint8_t[frm->payloadLength];
 	if(frm->payload == nullptr)
 	{
@@ -179,12 +179,12 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 			delete frm;
 			return;
 		}
-		frm->payload[i] = strtol(sstr,  NULL,  16);
+		frm->payload[i] = strtol(sstr,  nullptr,  16);
 	}
 
 	/* signature */
-	if((p = strchr(p, SEPARATOR)) != NULL)
-		frm->signature = ((uint32_t)strtoll(++p, NULL, 16));
+	if((p = strchr(p, SEPARATOR)) != nullptr)
+		frm->signature = ((uint32_t)strtoll(++p, nullptr, 16));
 
 	/* pass to mac */
 	if(fmac.transmit(frm) == 0)
@@ -468,8 +468,6 @@ uint16_t Serial_Interface::hash(uint8_t *buf, uint16_t len)
 
 void Serial_Interface::fanet_cmd_dump(char *ch_str)
 {
-	//todo true binary mode ???
-
 	uint16_t idx = 0;
 	uint8_t buffer[256];
 
@@ -633,7 +631,7 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 
 	/* get mandatory feature number */
 	char *p = (char *)ch_str;
-	const uint16_t num = strtol(p,  NULL,  16);
+	const uint16_t num = strtol(p,  nullptr,  16);
 	if(num >= NELEM(fanet.replayFeature))
 	{
 		print_line(FR_REPLYE_OUTOFBOUND);
@@ -641,32 +639,108 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 	}
 
 	p = strchr(p, SEPARATOR);
+	uint8_t buf[150];
 	if(p == nullptr)
 	{
 		/* print empty */
-		if(fanet.replayFeature[num].type == 0xFF)
+		if(fanet.replayFeature[num].type == FanetFrame::TYPE_NONE)
 		{
 			print_line(FR_REPLYM_EMPTY);
 			return;
 		}
 
 		/* print feature */
-		char buf[4];
-		snprintf(buf, sizeof(buf), "%02X", fanet.replayFeature[num].type);
-		print(buf);
+		snprintf((char *)buf, sizeof(buf), "%s%c %X,%X,%X,%X,", REMOTE_CMD_START, CMD_REMOTEREPLAY, num, fanet.replayFeature[num].type,
+				fanet.replayFeature[num].windSector, fanet.replayFeature[num].forward);
+		print((char *)buf);
+
 		for(uint16_t i=0; i<fanet.replayFeature[num].payloadLength; i++)
 		{
-			snprintf(buf, sizeof(buf), "%02X", fanet.replayFeature[num].payload[i]);
-			print(buf);
+			snprintf((char *)buf, sizeof(buf), "%02X", fanet.replayFeature[num].payload[i]);
+			print((char *)buf);
 		}
 		print("\n");
-		print_line(FR_REPLY_OK);
+		return;
+	}
+	p++;
+
+	/* type */
+	FanetFrame::FrameType_t type = FanetFrame::TYPE_NONE;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+
+		type = static_cast<FanetFrame::FrameType_t>(strtol(p,  nullptr,  16));
+printf("type: %d (num%d)\n", type, num);
+		/* find next */
+		p = strchr(p, SEPARATOR);
+		if(p == nullptr)
+		{
+			if(type == FanetFrame::TYPE_NONE)
+			{
+				fanet.replayFeature[num].init(0, FanetFrame::TYPE_NONE, false, nullptr, 0);
+				if(fanet.writeReplayFeatures())
+					print_line(FR_REPLY_OK);
+				else
+					print_line(FR_REPLYE_WRITEFAILED);
+printf("del %d\n", num);
+			}
+			else
+			{
+				print_line(FR_REPLYE_CMD_TOO_SHORT);
+			}
+			return;
+		}
+	}
+	else if(*p == '\0')
+	{
+		print_line(FR_REPLYE_CMD_TOO_SHORT);
+		return;
+	}
+	p++;
+
+	/* windsector */
+	uint8_t windSector = 0;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+		windSector = strtol(p,  nullptr,  16);
+printf("wind %X\n", windSector);
+		/* find next */
+		p = strchr(p, SEPARATOR);
+		if(p == nullptr)
+		{
+			print_line(FN_REPLYE_CMD_TOO_SHORT);
+			return;
+		}
+	}
+	else if(*p == '\0')
+	{
+		print_line(FR_REPLYE_CMD_TOO_SHORT);
+		return;
+	}
+	p++;
+
+	/* forwarding */
+	bool forward = false;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+		forward = !!strtol(p,  nullptr,  16);
+printf("forward %X\n", forward);
+		/* find next */
+		p = strchr(p, SEPARATOR);
+		if(p == nullptr)
+		{
+			print_line(FN_REPLYE_CMD_TOO_SHORT);
+			return;
+		}
+	}
+	else if(*p == '\0')
+	{
+		print_line(FR_REPLYE_CMD_TOO_SHORT);
 		return;
 	}
 	p++;
 
 	/* create new feature */
-	uint8_t buf[sizeof(rpf_t) + 1];
 	for(uint16_t i=0; i<std::min(strlen(p)/2, sizeof(buf)); i++)
 	{
 		char sstr[3] = { p[i*2], p[i*2+1], '\0' };
@@ -675,9 +749,12 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 			print_line(FR_REPLYE_ALIGN);
 			return;
 		}
-		buf[i] = strtol(sstr,  NULL,  16);
+		buf[i] = strtol(sstr,  nullptr,  16);
+printf("data %x\n", buf[i]);
 	}
-	if(FanetFrameRemoteConfig::replayFeature(num, buf, strlen(p)/2) == true)
+
+	fanet.replayFeature[num].init(windSector, type, forward, buf, strlen(p)/2);
+	if(fanet.writeReplayFeatures() == true)
 		print_line(FR_REPLY_OK);
 	else
 		print_line(FR_REPLYE_WRITEFAILED);
@@ -705,7 +782,7 @@ void Serial_Interface::fanet_remote_eval(char *str)
 
 void Serial_Interface::dongle_cmd_version(char *ch_str)
 {
-	if(myserial == NULL)
+	if(myserial == nullptr)
 		return;
 
 	char buf[64];
@@ -752,21 +829,21 @@ void Serial_Interface::dongle_cmd_region(char *ch_str)
 {
 	/* eval parameter */
 	char *p = (char *)ch_str;
-	if(p == NULL)
+	if(p == nullptr)
 	{
 		print_line(DN_REPLYE_TOOLESSPARAMETER);
 		return;
 	}
-	int freq = strtol(p, NULL, 10);
+	int freq = strtol(p, nullptr, 10);
 	p = strchr(p, SEPARATOR)+1;
-	if(p == NULL)
+	if(p == nullptr)
 	{
 		print_line(DN_REPLYE_TOOLESSPARAMETER);
 		return;
 	}
 	sx_region_t region;
 	region.channel = 0;
-	region.dBm = strtol(p, NULL, 10);
+	region.dBm = strtol(p, nullptr, 10);
 
 	switch(freq)
 	{
@@ -868,7 +945,7 @@ void Serial_Interface::dongle_eval(char *str)
 /* collect string */
 void Serial_Interface::handle_rx(void)
 {
-	if(myserial == NULL)
+	if(myserial == nullptr)
 		return;
 
 	char line[256];
@@ -903,7 +980,7 @@ void Serial_Interface::begin(serial_t *serial)
 
 void Serial_Interface::handle_acked(bool ack, FanetMacAddr &addr)
 {
-	if(myserial == NULL)
+	if(myserial == nullptr)
 		return;
 
 	char buf[64];
@@ -913,7 +990,7 @@ void Serial_Interface::handle_acked(bool ack, FanetMacAddr &addr)
 
 void Serial_Interface::handleFrame(FanetFrame *frm)
 {
-	if(myserial == NULL || frm == NULL)
+	if(myserial == nullptr || frm == nullptr)
 		return;
 
 	/* simply print frame */
@@ -945,7 +1022,7 @@ void Serial_Interface::print_raw(const uint8_t *data, uint16_t len)
 
 void Serial_Interface::print_line(const char *type, int key, const char *msg)
 {
-	if(myserial == NULL || type == NULL)
+	if(myserial == nullptr || type == nullptr)
 		return;
 
 	/* general answer */

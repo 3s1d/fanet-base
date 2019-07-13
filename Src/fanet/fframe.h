@@ -44,6 +44,7 @@ class FanetFrame
 public:
 	enum FrameType_t : uint8_t
 	{
+		TYPE_NONE = 0,
 		TYPE_ACK = 0,
 		TYPE_TRACKING = 1,
 		TYPE_NAME = 2,

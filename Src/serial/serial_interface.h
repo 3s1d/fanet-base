@@ -105,6 +105,7 @@ void wire_task(void const * argument);
 #define FR_REPLYE_ALIGN			REMOTE_CMD_ERROR,39, "align"
 #define FR_REPLYM_EMPTY			REMOTE_CMD_MSG,  40, "empty"
 #define FR_REPLYE_WRITEFAILED		REMOTE_CMD_ERROR,41, "write failed"
+#define FR_REPLYE_CMD_TOO_SHORT		FANET_CMD_ERROR, 32, "too short"
 #define DN_REPLY_OK			DONGLE_CMD_OK, 	 0,  ""
 #define DN_REPLYE_DONGLE_UNKNOWN_CMD	DONGLE_CMD_ERROR,60, "unknown DG command"
 #define DN_REPLYE_JUMP			DONGLE_CMD_ERROR,61, "unknown jump point"
@@ -133,7 +134,8 @@ void wire_task(void const * argument);
  * Print frame:		#FNP toConsole (0..2)
  *
  * Remote Key:		#FRK key
- * Replay Feature:	#FRR num(hex),payload									note: #FRR num,FF -> clean
+ * Replay Feature:	#FRR num(hex)[,type(hex),windsector(hex, always=FF),forwarding(0..1),payload]		note: only until num gives an reply,
+ * 														note: #FRR num,0 -> clean
  * TODO geofence
  *
  * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload

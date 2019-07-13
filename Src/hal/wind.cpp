@@ -229,7 +229,7 @@ float Wind::getDir_2min_avg(void)
 	float dir_avg2m = sum / NELEM(dir_db);
 	if(dir_avg2m >= 360.0f)
 		dir_avg2m -= 360.0f;
-	if(dir_avg2m < 0)
+	if(dir_avg2m < 0.0f)
 		dir_avg2m += 360.0f;
 
 	return dir_avg2m;

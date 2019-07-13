@@ -31,12 +31,11 @@ void fanet_task(void const * argument);
 
 #define FANET_NEIGHBOR_SIZE			64
 
+
 /* service */
-#define FANET_TYPE4_MINTAU_MS			250
 #define	FANET_TYPE4_TAU_MS			20000
 
 /* remote configuration, replayed data */
-#define	FANET_TYPE6_MINTAU_MS			250
 #define	FANET_TYPE6_TAU_MS			30000
 #define FANET_TYPE6_PAUSE_MS			180000
 
@@ -50,8 +49,10 @@ void fanet_task(void const * argument);
 
 #define FANET_KEY_SIZE				16
 
+#include "replay.h"
 #include "fmac.h"
 
+/*
 typedef struct
 {
 	uint8_t type;
@@ -60,7 +61,7 @@ typedef struct
 	uint8_t padding;
 	uint8_t payload[132];
 } __attribute__((packed)) rpf_t;			//note: size has to divide'able by 8 AND sizeof(rpf_t) <= FLASH_PAGESIZE/12
-
+*/
 
 class Fanet : public Fapp
 {
@@ -71,6 +72,7 @@ public:
 		WAIT = 0,
 		ACK = 1
 	};
+
 private:
 	/* neighbors */
 	std::list<FanetNeighbor*> neighbors;
@@ -79,7 +81,7 @@ private:
 
 	/* broadcasts */
 	uint32_t nextRfBroadcast = 0;
-	uint16_t nextRfIdx = 13-1;
+	int16_t nextRfIdx = -1;
 	uint32_t nextServiceBroadcast = 0;
 
 	/* ACK buffer */
@@ -93,7 +95,7 @@ private:
 
 	/* manual / serial */
 	uint32_t noAutoServiceBefore = 0;
-	int16_t _frameToConsole = 0;										//0: false, 1: true, 2: promiscuous
+	int16_t _frameToConsole = 0;									//0: false, 1: true, 2: promiscuous
 
 	/* remote */
 	void loadKey(void);
@@ -104,7 +106,7 @@ public:
 	const char *key = _key;
 	const Coordinate3D &position;
 	const float &heading;
-	rpf_t replayFeature[12];										//will be initialized upon constructor
+	Replay replayFeature[12];									//will be initialized upon constructor
 
 	const int16_t &frameToConsole;
 

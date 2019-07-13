@@ -60,7 +60,7 @@ void fanet_task(void const * argument)
 
 	/* turn on FANET */
 	fmac.setPower(true);
-
+//todo tx power
 	/* fanet loop */
 	while(1)
 	{
@@ -101,6 +101,8 @@ void operator delete(void *p)
 
 void Fanet::handle(void)
 {
+	const uint32_t current = osKernelSysTick();
+
 #if 0
 	pwr management
 
@@ -138,20 +140,58 @@ void Fanet::handle(void)
 #endif
 
 
-	/* broadcast name */
-//	if(settings.broadcastName && nextNameBroadcast < osKernelSysTick() && strlen(pilot.name))
-//	{
-//		FanetFrameName *ffn = new FanetFrameName();
-//		if(fmac.transmit(ffn) != 0)
-//			delete ffn;
+	//next power settings! for low pwr + diasbale goe forwarding
+	//vario com, pos, replay, geofence....
 
-//		nextNameBroadcast = osKernelSysTick() + FANET_TYPE2_TAU_MS;
-//	}
 
 //todo disable forward, promiscous enabed if geo-based forward rule
 fmac.doForward = false;
 fmac.promiscuous = true;
 //todo
+
+
+	/* time for next replay broadcast? */
+	if(nextRfBroadcast < current)
+	{
+		/* just in case, nothing is found delay next eval by 10sec */
+		nextRfBroadcast = current + 10000;
+
+		/* find next index */
+		bool found = false;
+		for(uint16_t i=0; i<NELEM(replayFeature); i++)
+		{
+			/* overflow -> pause */
+			if(++nextRfIdx >= (int16_t)NELEM(replayFeature))
+			{
+				nextRfIdx = -1;
+				nextRfBroadcast = current + FANET_TYPE6_PAUSE_MS;
+				break;
+			}
+
+			if(nextRfIdx >= 0 && replayFeature[nextRfIdx].isVaild())
+			{
+				found = true;
+				break;
+			}
+		}
+
+		/* send frame */
+		if(found == true)
+		{
+			/* in case of a busy channel, ensure that frames from the tx fifo gets also a change */
+			nextRfBroadcast = current + FANET_TYPE6_TAU_MS * (!!power::isSufficiant() + 1);
+
+			/* broadcast replay */
+			FanetFrame *frm = replayFeature[nextRfIdx].toFrame();
+			if(fmac.transmit(frm) != 0)
+			{
+				/* failed, try again latter */
+				delete frm;
+				nextRfIdx--;
+				nextRfBroadcast = current + FANET_TYPE6_TAU_MS;
+			}
+		}
+	}
 
 	/* remove unavailable nodes */
 	fanet.cleanNeighbors();
@@ -258,62 +298,18 @@ FanetFrame *Fanet::broadcastIntended(void)
 	const uint32_t current = osKernelSysTick();
 
 	/* time for next service broadcast? */
-	if(nextServiceBroadcast <= current)
-	{
-		FanetFrameService *sfrm = new FanetFrameService(false, strlen(fanet.key)>0);		//no Inet but remoteCfg if key present
-		debug_printf("tx service\n");
-		if(wind.sensorPresent)
-			sfrm->setWind(wind.getDir_2min_avg(), wind.getSpeed_2min_avg(), wind.getSpeed_max());
-		sfrm->setSoc(power::isSufficiant() ? 100.0f : 30.0f);
-
-		/* in case of a busy channel, ensure that frames from the tx fifo gets also a change */
-		nextServiceBroadcast = current + FANET_TYPE4_MINTAU_MS;
-
-		return sfrm;
-	}
-
-	/* time for next replay broadcast? */
-	if(nextRfBroadcast > current)
+	if(nextServiceBroadcast > current)
 		return nullptr;
 
-	/* not valid replay feature -> find next */
-	if(replayFeature[nextRfIdx].type == 0xFF)
-	{
-		/* find next index, max iterate once over array */
-		for(uint16_t i=0; i<NELEM(replayFeature); i++)
-		{
-			/* overflow */
-			nextRfIdx = (nextRfIdx+1) % NELEM(replayFeature);
-
-			/* suitable content */
-			if(replayFeature[nextRfIdx].type != 0xFF)
-				break;
-		}
-
-		/* still not valid */
-		if(replayFeature[nextRfIdx].type == 0xFF)
-		{
-			/* just in case, delay eval by 10sec */
-			nextRfBroadcast = current + 10000;
-			return nullptr;
-		}
-	}
+	FanetFrameService *sfrm = new FanetFrameService(false, strlen(fanet.key)>0);		//no Inet but remoteCfg if key present
+	debug_printf("tx service\n");
+	if(wind.sensorPresent)
+		sfrm->setWind(wind.getDir_2min_avg(), wind.getSpeed_2min_avg(), wind.getSpeed_max());
+	sfrm->setSoc(power::isSufficiant() ? 100.0f : 30.0f);
 
 	/* in case of a busy channel, ensure that frames from the tx fifo gets also a change */
-	nextRfBroadcast = current + FANET_TYPE6_MINTAU_MS;
-
-	/* broadcast replay */
-	FanetFrame *frm = new FanetFrame();
-	debug_printf("tx replay type:%x (idx:%d)\n", replayFeature[nextRfIdx].type, nextRfIdx);
-
-	/* allow for replay/alternative information */
-	//note: we'll might send crap if somebody altered the content since isBroadcastReady(). Thou' can't stop here...
-	frm->setType(static_cast<FanetFrame::FrameType_t>(replayFeature[nextRfIdx].type));
-	frm->payloadLength = replayFeature[nextRfIdx].payloadLength;
-	frm->payload = new uint8_t[frm->payloadLength];
-	memcpy(frm->payload, replayFeature[nextRfIdx].payload, frm->payloadLength);
-
-	return frm;
+	nextServiceBroadcast = current + 1000;
+	return sfrm;
 }
 
 void Fanet::broadcastSuccessful(FanetFrame::FrameType_t type)
@@ -321,114 +317,8 @@ void Fanet::broadcastSuccessful(FanetFrame::FrameType_t type)
 	const uint32_t current = osKernelSysTick();
 
 	/* service frame */
-	if(type == FanetFrame::TYPE_SERVICE && nextServiceBroadcast-current < FANET_TYPE4_MINTAU_MS) 	//shortly released before
-	{
-		nextServiceBroadcast = current + (numNeighbors()/20+1) * FANET_TYPE4_TAU_MS * (!!power::isSufficiant() + 1);
-		return;
-	}
-
-	//actually replayFeature[nextRfIdx].type == type... could be tested.
-
-	/* Replay Frame */
-	nextRfBroadcast = current + FANET_TYPE6_TAU_MS * (!!power::isSufficiant() + 1);
-
-	/* find next index */
-	for(uint16_t i=0; i<NELEM(replayFeature); i++)
-	{
-		/* overflow */
-		if(++nextRfIdx >= NELEM(replayFeature))
-		{
-			nextRfIdx = 0;
-			nextRfBroadcast += FANET_TYPE6_PAUSE_MS - FANET_TYPE6_TAU_MS;
-		}
-
-		if(replayFeature[nextRfIdx].type != 0xFF)
-			break;
-	}
+	nextServiceBroadcast = current + (numNeighbors()/20+1) * FANET_TYPE4_TAU_MS * (!!power::isSufficiant() + 1);
 }
-
-#if 0
-//note: decoded here as it heavily interacts w/ class Fanet
-bool Fanet::decodeRemoteConfig(FanetFrame *frm)
-{
-	if(frm == nullptr || frm->type != FanetFrame::TYPE_REMOTECONFIG || strlen(key) == 0)
-		return false;
-
-	/* check signature */
-	SHA1_CTX ctx;
-	sha1_init(&ctx);
-	BYTE hash[SHA1_BLOCK_SIZE];
-
-	/* pseudo header */
-	uint8_t phdr[4];
-	phdr[0] = frm->type & 0x3F;
-	phdr[1] = frm->src.manufacturer;
-	phdr[2] = frm->src.id & 0xFF;
-	phdr[3] = frm->src.id >> 8;
-	sha1_update(&ctx, phdr, sizeof(phdr));
-
-	/* payload */
-	sha1_update(&ctx, frm->payload, frm->payloadLength);
-
-	/* pre shared key */
-	sha1_update(&ctx, (uint8_t*) _key, std::min(strlen(_key), sizeof(_key)));
-
-	/* sign */
-	sha1_final(&ctx, hash);
-	uint32_t signature;
-	memcpy(&signature, hash, sizeof(uint32_t));
-
-	/* ignore incorrectly signed frames */
-	if(signature != frm->signature)
-		return false;
-
-	//tbr
-	debug_printf("rc: %d", frm->payload[0]);
-
-	/*
-	 * Evaluate payload
-	 */
-	bool success = false;
-	if(frm->payloadLength > 0 && frm->payload[0] == FANET_RC_POSITION)
-	{
-		success = rcPosition(&frm->payload[1], frm->payloadLength - 1);
-	}
-	else if(frm->payloadLength > 0 && frm->payload[0] >= FANET_RC_REPLAY_LOWER && frm->payload[0] <= FANET_RC_REPLAY_UPPER)
-	{
-		success = writeReplayFeature(frm->payload[0] - FANET_RC_REPLAY_LOWER, &frm->payload[1], frm->payloadLength - 1);
-
-		/* broadcast latest feature */
-		if(frm->payload[1] != 0xFF)		//type
-		{
-			nextRfIdx = frm->payload[0] - FANET_RC_REPLAY_LOWER;
-			nextRfBroadcast = osKernelSysTick() + 500;
-		}
-	}
-
-	/* generate RC ACK */
-	if(success)
-	{
-		FanetFrame *rfrm = new FanetFrame(fmac.addr);
-		if(rfrm == nullptr)
-			return true;
-
-		/* manually construct frame */
-		rfrm->setType(FanetFrame::TYPE_REMOTECONFIG);
-		rfrm->dest = frm->src;
-		rfrm->forward = false;
-		rfrm->ackRequested = false;
-		rfrm->payloadLength = 2;
-		rfrm->payload = new uint8_t[rfrm->payloadLength];
-		rfrm->payload[0] = FANET_RC_ACK;
-		rfrm->payload[1] = frm->payload[0];
-
-		if(fmac.transmit(rfrm) != 0)
-			delete frm;
-	}
-
-	return true;
-}
-#endif
 
 void Fanet::handleAcked(bool ack, FanetMacAddr &addr)
 {
@@ -629,31 +519,18 @@ bool Fanet::writeReplayFeatures(void)
 	}
 
 	/* write */
-	for(uint16_t i=0; i<sizeof(replayFeature)/8; i++)
-	{
-		/* build config */
-		uint64_t addr_container = ((uint64_t) ((uint8_t *)replayFeature)[i*8]) << 0 |
-				((uint64_t) ((uint8_t *)replayFeature)[i*8 + 1]) << 8 |
-				((uint64_t) ((uint8_t *)replayFeature)[i*8 + 2]) << 16 |
-				((uint64_t) ((uint8_t *)replayFeature)[i*8 + 3]) << 24 |
-				((uint64_t) ((uint8_t *)replayFeature)[i*8 + 4]) << 32 |
-				((uint64_t) ((uint8_t *)replayFeature)[i*8 + 5]) << 40 |
-				((uint64_t) ((uint8_t *)replayFeature)[i*8 + 6]) << 48 |
-				((uint64_t) ((uint8_t *)replayFeature)[i*8 + 7]) << 56;
+	bool error = false;
+	for(uint16_t i=0; i<NELEM(replayFeature); i++)
+		error |= !replayFeature[i].write(FANET_RPADDR_BASE + i*FLASH_PAGESIZE/NELEM(replayFeature)/8*8);
 
-		if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FANET_RPADDR_BASE + i*8, addr_container) != HAL_OK)
-		{
-			HAL_FLASH_Lock();
-			return false;
-		}
-	}
 	HAL_FLASH_Lock();
-	return true;
+	return !error;
 }
 
 void Fanet::loadReplayFeatures(void)
 {
-	memcpy(replayFeature, (void *)(__IO uint64_t*)FANET_RPADDR_BASE, sizeof(replayFeature));
+	for(uint16_t i=0; i<NELEM(replayFeature); i++)
+		replayFeature[i].load(FANET_RPADDR_BASE + i*FLASH_PAGESIZE/NELEM(replayFeature)/8*8);
 }
 
 Fanet::Fanet() : Fapp(), position(_position), heading(_heading), frameToConsole(_frameToConsole)

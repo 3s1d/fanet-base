@@ -86,7 +86,7 @@ void FanetFrameRemoteConfig::decode(FanetFrame *frm)
 		rfrm->payload[1] = frm->payload[0];
 
 		if(fmac.transmit(rfrm) != 0)
-			delete frm;
+			delete rfrm;
 	}
 }
 
@@ -110,24 +110,15 @@ bool FanetFrameRemoteConfig::position(uint8_t *payload, uint16_t payload_length)
 
 bool FanetFrameRemoteConfig::replayFeature(uint16_t num, uint8_t *payload, uint16_t len)
 {
+	/* out of bound */
 	if(num >= NELEM(fanet.replayFeature))
 		return false;
 
 	if(len < 2)
-	{
-		/* remove feature */
-		fanet.replayFeature[num].type = 0xFF;		//empty
-		fanet.replayFeature[num].payloadLength = 0;
-
-		return fanet.writeReplayFeatures();
-	}
-
-	/* copy feature */
-	fanet.replayFeature[num].windSector = payload[0];
-	fanet.replayFeature[num].type = payload[1];
-	fanet.replayFeature[num].payloadLength = len-2;
-	memcpy(fanet.replayFeature[num].payload, &payload[2],
-			std::min((uint16_t) fanet.replayFeature[num].payloadLength, (uint16_t) sizeof(fanet.replayFeature[num].payload)));
+		fanet.replayFeature[num].init(0, static_cast<FanetFrame::FrameType_t>(0), false, nullptr, 0);	//remove feature
+	else
+		fanet.replayFeature[num].init(payload[0], static_cast<FanetFrame::FrameType_t>(payload[1]&0x3F), !!(payload[1]&0x40),
+				&payload[2], len-2);								// copy feature
 
 	return fanet.writeReplayFeatures();
 }
