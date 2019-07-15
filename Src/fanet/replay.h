@@ -14,6 +14,7 @@
 class Replay
 {
 	friend class Serial_Interface;
+	friend class FanetFrameRemoteConfig;
 
 private:
 	uint8_t *payload = nullptr;

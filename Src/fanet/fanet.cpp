@@ -141,6 +141,7 @@ void Fanet::handle(void)
 #endif
 
 
+	//remote config request/reply... maybe 2 (pos) has to move to 3
 	//next power settings! for low pwr + diasbale goe forwarding
 	//vario com, pos, replay, geofence....
 

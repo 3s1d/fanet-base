@@ -5,6 +5,8 @@
  *      Author: sid
  */
 
+#include <math.h>
+
 #include "common.h"
 #include "print.h"
 
@@ -63,6 +65,8 @@ void FanetFrameRemoteConfig::decode(FanetFrame *frm)
 		success = replayFeature(frm->payload[0] - FANET_RC_REPLAY_LOWER, &frm->payload[1], frm->payloadLength - 1);
 	else if(frm->payloadLength > 0 && frm->payload[0] >= FANET_RC_GEOFENCE_LOWER && frm->payload[0] <= FANET_RC_GEOFENCE_UPPER)
 		success = geofenceFeature(frm->payload[0] - FANET_RC_REPLAY_LOWER, &frm->payload[1], frm->payloadLength - 1);
+	else if(frm->payloadLength > 1 && frm->payload[0] == FANET_RC_REQUST)
+		request(frm->payload[1], frm->src);					//success unchanged as it'll generate a packet on it's own
 
 	/* generate RC ACK */
 	if(success)
@@ -123,4 +127,62 @@ bool FanetFrameRemoteConfig::geofenceFeature(uint16_t num, uint8_t *payload, uin
 {
 	debug_printf("TODO\n");
 	return false;
+}
+
+void FanetFrameRemoteConfig::request(uint8_t subtype, FanetMacAddr &addr)
+{
+	/* generate frame */
+	FanetFrame *rfrm = new FanetFrame(fmac.addr);
+	if(rfrm == nullptr)
+		return;
+	rfrm->setType(FanetFrame::TYPE_REMOTECONFIG);
+	rfrm->dest = addr;
+	rfrm->forward = false;
+	rfrm->ackRequested = false;
+
+	if(subtype == FANET_RC_POSITION)
+	{
+		if(fanet.position != Coordinate3D())
+		{
+			/* tell position */
+			rfrm->payloadLength = 1+6+2;
+			rfrm->payload = new uint8_t[rfrm->payloadLength];
+			rfrm->payload[0] = FANET_RC_POSITION;
+			FanetFrame::coord2payload_absolut(fanet.position, &rfrm->payload[1]);
+			rfrm->payload[7] = static_cast<uint8_t>(static_cast<int16_t>(std::round(fanet.position.altitude/25.0f)) - 109);
+			rfrm->payload[8] = static_cast<uint8_t>(std::round(fanet.heading/360.0f*256.0f));
+		}
+		else
+		{
+			/* no position present */
+			rfrm->payloadLength = 1;
+			rfrm->payload = new uint8_t[rfrm->payloadLength];
+			rfrm->payload[0] = FANET_RC_POSITION;
+		}
+	}
+	else if(subtype >= FANET_RC_REPLAY_LOWER && subtype <= FANET_RC_REPLAY_UPPER)
+	{
+		const uint16_t idx = subtype-FANET_RC_REPLAY_LOWER;
+		if(fanet.replayFeature[idx].payloadLength > 0)
+		{
+			rfrm->payloadLength = 1+2+fanet.replayFeature[idx].payloadLength;
+			rfrm->payload = new uint8_t[rfrm->payloadLength];
+			rfrm->payload[0] = subtype;
+			rfrm->payload[1] = fanet.replayFeature[idx].windSector;
+			rfrm->payload[2] = fanet.replayFeature[idx].type | (fanet.replayFeature[idx].forward<<6);
+			memcpy(&rfrm->payload[3], fanet.replayFeature[idx].payload, fanet.replayFeature[idx].payloadLength);
+		}
+		else
+		{
+			/* no position present */
+			rfrm->payloadLength = 1;
+			rfrm->payload = new uint8_t[rfrm->payloadLength];
+			rfrm->payload[0] = subtype;
+		}
+	}
+	//todo geofaence
+
+	/* send if filed */
+	if(rfrm->payloadLength == 0 || fmac.transmit(rfrm) != 0)
+		delete rfrm;
 }
