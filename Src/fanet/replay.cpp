@@ -49,7 +49,7 @@ FanetFrame *Replay::toFrame(void)
 	frm->payload = new uint8_t[frm->payloadLength];
 	memcpy(frm->payload, payload, frm->payloadLength);
 
-	debug_printf("replay type:%x\n", type);
+	debug_printf("RPF type%02X\n", type);
 	return frm;
 }
 
@@ -77,6 +77,7 @@ void Replay::init(uint8_t windSector, FanetFrame::FrameType_t type, bool forward
 	this->payload = new uint8_t[len];
 	memcpy(this->payload, payload, this->payloadLength);
 
+	debug_printf("RPF wind%02X type%02X fw%d len%d\n", this->windSector, this->type, this->forward, this->payloadLength);
 }
 
 bool Replay::write(uint32_t addr)
@@ -140,6 +141,6 @@ void Replay::load(uint32_t addr)
 		return;
 	}
 
-	init((*ptr>>16)&0xFF, static_cast<FanetFrame::FrameType_t>(*ptr&0xFF), (*ptr>>8)&0xFF, (uint8_t *) (ptr+8), (*ptr>>24) & 0xFF);
+	init((*ptr>>16)&0xFF, static_cast<FanetFrame::FrameType_t>(*ptr&0xFF), (*ptr>>8)&0xFF, (uint8_t *) (ptr+1), (*ptr>>24) & 0xFF);
 }
 

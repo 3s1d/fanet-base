@@ -51,6 +51,10 @@ bool FanetMac::init(Fapp &app)
 	//eraseAddr();
 	_addr = readAddr();
 
+	/* init app */
+	if(myApp != nullptr)
+		myApp->init(this);
+
 	return true;
 }
 

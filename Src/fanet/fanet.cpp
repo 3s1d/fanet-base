@@ -61,6 +61,7 @@ void fanet_task(void const * argument)
 	/* turn on FANET */
 	fmac.setPower(true);
 //todo tx power
+
 	/* fanet loop */
 	while(1)
 	{
@@ -302,7 +303,7 @@ FanetFrame *Fanet::broadcastIntended(void)
 		return nullptr;
 
 	FanetFrameService *sfrm = new FanetFrameService(false, strlen(fanet.key)>0);		//no Inet but remoteCfg if key present
-	debug_printf("tx service\n");
+	debug_printf("Service Tx\n");
 	if(wind.sensorPresent)
 		sfrm->setWind(wind.getDir_2min_avg(), wind.getSpeed_2min_avg(), wind.getSpeed_max());
 	sfrm->setSoc(power::isSufficiant() ? 100.0f : 30.0f);
@@ -423,6 +424,8 @@ void Fanet::loadKey(void)
 		return;
 
 	snprintf(_key, sizeof(_key), "%s", (char *)(__IO uint64_t*)FANET_KEYADDR_BASE);
+
+	debug_printf("Key: '%s'\n", key);
 }
 
 bool Fanet::writePosition(Coordinate3D newPos, float newHeading)
@@ -496,6 +499,8 @@ void Fanet::loadPosition(void)
 	memcpy(&_position.longitude, (void *)(__IO uint64_t*) (FANET_POSADDR_BASE+8), sizeof(float));
 	memcpy(&_position.altitude, (void *)(__IO uint64_t*) (FANET_POSADDR_BASE+16), sizeof(float));
 	memcpy(&_heading, (void *)(__IO uint64_t*) (FANET_POSADDR_BASE+24), sizeof(float));
+
+	debug_printf("Loc %.4f,%.4f,%.fm,%.fdeg\n", position.latitude, position.longitude, position.altitude, heading);
 }
 
 bool Fanet::writeReplayFeatures(void)
@@ -533,7 +538,7 @@ void Fanet::loadReplayFeatures(void)
 		replayFeature[i].load(FANET_RPADDR_BASE + i*FLASH_PAGESIZE/NELEM(replayFeature)/8*8);
 }
 
-Fanet::Fanet() : Fapp(), position(_position), heading(_heading), frameToConsole(_frameToConsole)
+void Fanet::init(FanetMac *fmac)
 {
 	/* read configuration */
 	loadKey();

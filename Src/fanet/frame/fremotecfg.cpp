@@ -53,13 +53,9 @@ void FanetFrameRemoteConfig::decode(FanetFrame *frm)
 	if(signature != frm->signature)
 		return;
 
-	//tbr
-	debug_printf("rc: %d", frm->payload[0]);
-
 	/*
 	 * Evaluate payload
 	 */
-//todo geo fence....
 	bool success = false;
 	if(frm->payloadLength > 0 && frm->payload[0] == FANET_RC_POSITION)
 		success = position(&frm->payload[1], frm->payloadLength - 1);

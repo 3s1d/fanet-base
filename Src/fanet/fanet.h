@@ -80,9 +80,9 @@ private:
 	osMutexId neighborMutex = osMutexCreate(osMutex(neighborMutex));
 
 	/* broadcasts */
-	uint32_t nextRfBroadcast = 0;
+	uint32_t nextRfBroadcast = 1000;
 	int16_t nextRfIdx = -1;
-	uint32_t nextServiceBroadcast = 0;
+	uint32_t nextServiceBroadcast = 500;
 
 	/* ACK buffer */
 	FanetMacAddr ackAddr;
@@ -110,7 +110,8 @@ public:
 
 	const int16_t &frameToConsole;
 
-	Fanet();
+	Fanet() : Fapp(), position(_position), heading(_heading), frameToConsole(_frameToConsole) { }
+	void init(FanetMac *fmac);
 
 	/* device -> air */
 	FanetFrame *broadcastIntended(void);

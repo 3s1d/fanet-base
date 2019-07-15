@@ -98,6 +98,7 @@ class Fapp
 public:
 	Fapp() { }
 	virtual ~Fapp() { }
+	virtual void init(FanetMac *fmac);
 
 	/* device -> air */
 	virtual FanetFrame *broadcastIntended(void) = 0;
