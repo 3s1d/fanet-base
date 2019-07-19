@@ -501,7 +501,7 @@ void Fanet::loadPosition(void)
 	memcpy(&_position.altitude, (void *)(__IO uint64_t*) (FANET_POSADDR_BASE+16), sizeof(float));
 	memcpy(&_heading, (void *)(__IO uint64_t*) (FANET_POSADDR_BASE+24), sizeof(float));
 
-	debug_printf("Loc %.4f,%.4f,%.fm,%.fdeg\n", position.latitude, position.longitude, position.altitude, heading);
+	debug_printf("Loc %.4f,%.4f,%.fm,%.fdeg\n", rad2deg(position.latitude), rad2deg(position.longitude), position.altitude, heading);
 }
 
 bool Fanet::writeReplayFeatures(void)

@@ -877,7 +877,7 @@ void Serial_Interface::dongle_cmd_location(char *ch_str)
 			/* report location */
 			char buf[64];
 			snprintf(buf, sizeof(buf), "%s%c %.5f,%.5f,%.f,%.1f\n", REMOTE_CMD_START, CMD_COORDINATE,
-					fanet.position.latitude, fanet.position.longitude, fanet.position.altitude, fanet.heading);
+					rad2deg(fanet.position.latitude), rad2deg(fanet.position.longitude), fanet.position.altitude, fanet.heading);
 			print(buf);
 		}
 		else
@@ -911,7 +911,7 @@ void Serial_Interface::dongle_cmd_location(char *ch_str)
 		return;
 	}
 	const float heading = atof(++p);
-	if(fanet.writePosition(Coordinate3D(lat, lon, alt), heading) == true)
+	if(fanet.writePosition(Coordinate3D(deg2rad(lat), deg2rad(lon), alt), heading) == true)
 		print_line(FR_REPLY_OK);
 	else
 		print_line(FR_REPLYE_WRITEFAILED);

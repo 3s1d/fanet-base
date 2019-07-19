@@ -26,8 +26,9 @@
  * Frame
  */
 
-uint16_t FanetFrame::coord2payload_compressed(float ref_deg)
+uint16_t FanetFrame::coord2payload_compressed(float rad)
 {
+	const float ref_deg = rad2deg(rad);
 	const float deg_round = std::round(ref_deg);
 	const bool deg_odd = ((int)deg_round) & 1;
 	const float decimal = ref_deg - deg_round;
@@ -42,8 +43,8 @@ void FanetFrame::coord2payload_absolut(const Coordinate3D &coord, uint8_t *buf)
 	if(buf == nullptr)
 		return;
 
-	int32_t lat_i = std::round(coord.latitude * 93206.0f);
-	int32_t lon_i = std::round(coord.longitude * 46603.0f);
+	int32_t lat_i = std::round(rad2deg(coord.latitude) * 93206.0f);
+	int32_t lon_i = std::round(rad2deg(coord.longitude) * 46603.0f);
 
 	buf[0] = ((uint8_t*)&lat_i)[0];
 	buf[1] = ((uint8_t*)&lat_i)[1];
@@ -54,20 +55,21 @@ void FanetFrame::coord2payload_absolut(const Coordinate3D &coord, uint8_t *buf)
 	buf[5] = ((uint8_t*)&lon_i)[2];
 }
 
-float FanetFrame::payload2coord_compressed(const uint16_t *buf, float ref_deg)
+float FanetFrame::payload2coord_compressed(const uint16_t *buf, float ref)
 {
 	if(buf == nullptr)
 		return NAN;
 
 	/* decode buffer */
-	bool odd = !!((1<<15) & *buf);
-	int16_t sub_deg_int = (*buf&0x7FFF) | (1<<14&*buf)<<1;
+	const bool odd = !!((1<<15) & *buf);
+	const int16_t sub_deg_int = (*buf&0x7FFF) | (1<<14&*buf)<<1;
 	const float sub_deg = sub_deg_int / 32767.0f;
 
 
 	/* retrieve coordinate */
+	const float ref_deg = rad2deg(ref);
 	float mycood_rounded = roundf(ref_deg);
-	bool mycoord_isodd = ((int)mycood_rounded) & 1;
+	const bool mycoord_isodd = ((int)mycood_rounded) & 1;
 
 	/* target outside our segment. estimate where it is in */
 	if(mycoord_isodd != odd)
@@ -80,7 +82,7 @@ float FanetFrame::payload2coord_compressed(const uint16_t *buf, float ref_deg)
 			mycood_rounded++;
 	}
 
-	return mycood_rounded + sub_deg;
+	return deg2rad(mycood_rounded + sub_deg);
 }
 
 void FanetFrame::payload2coord_absolute(const uint8_t *buf, Coordinate2D &pos)
@@ -96,8 +98,8 @@ void FanetFrame::payload2coord_absolute(const uint8_t *buf, Coordinate2D &pos)
 	if(loni & 0x00800000)
 		loni |= 0xFF000000;
 
-	pos.latitude = ((float)lati / 93206.0f);
-	pos.longitude = ((float)loni / 46603.0f);
+	pos.latitude = deg2rad((float)lati / 93206.0f);
+	pos.longitude = deg2rad((float)loni / 46603.0f);
 }
 
 float FanetFrame::payload2ufloat(uint8_t buf, float scale)

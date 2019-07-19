@@ -64,7 +64,7 @@ void FanetFrameRemoteConfig::decode(FanetFrame *frm)
 	else if(frm->payloadLength > 0 && frm->payload[0] >= FANET_RC_REPLAY_LOWER && frm->payload[0] <= FANET_RC_REPLAY_UPPER)
 		success = replayFeature(frm->payload[0] - FANET_RC_REPLAY_LOWER, &frm->payload[1], frm->payloadLength - 1);
 	else if(frm->payloadLength > 0 && frm->payload[0] >= FANET_RC_GEOFENCE_LOWER && frm->payload[0] <= FANET_RC_GEOFENCE_UPPER)
-		success = geofenceFeature(frm->payload[0] - FANET_RC_REPLAY_LOWER, &frm->payload[1], frm->payloadLength - 1);
+		success = geofenceFeature(frm->payload[0] - FANET_RC_GEOFENCE_LOWER, &frm->payload[1], frm->payloadLength - 1);
 	else if(frm->payloadLength > 1 && frm->payload[0] == FANET_RC_REQUST)
 		request(frm->payload[1], frm->src);					//success unchanged as it'll generate a packet on it's own
 
@@ -125,7 +125,23 @@ bool FanetFrameRemoteConfig::replayFeature(uint16_t num, uint8_t *payload, uint1
 
 bool FanetFrameRemoteConfig::geofenceFeature(uint16_t num, uint8_t *payload, uint16_t len)
 {
-	debug_printf("TODO\n");
+	debug_printf("gf %d\n", num);
+	Coordinate2D pos;
+	if(len < 2+6+4+4)											//min 2 altitudes, 3 positions
+		return false;
+	uint16_t idx = 0;
+	int16_t btm = (((int8_t)payload[idx++]) + 109) * 25;
+	int16_t top = (((int8_t)payload[idx++]) + 109) * 25;
+	FanetFrame::payload2coord_absolute(&payload[idx], pos);
+	idx += 6;
+	debug_printf("%d-%dm %.5f,%.5f\n", btm, top, rad2deg(pos.latitude), rad2deg(pos.longitude));
+
+	for(uint16_t i=idx; i<len-3; i+=4)
+	{
+		float lat = FanetFrame::payload2coord_compressed((uint16_t *)&payload[i], pos.latitude);
+		float lon = FanetFrame::payload2coord_compressed((uint16_t *)&payload[i+2], pos.longitude);
+		debug_printf("%.5f,%.5f\n", rad2deg(lat), rad2deg(lon));
+	}
 	return false;
 }
 
