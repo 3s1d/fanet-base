@@ -70,6 +70,9 @@
 #define MAC_ADDR_MAGIC				0x1337000000000000ULL
 #define MAC_ADDR_MAGIC_MASK			0xFFFF000000000000ULL
 
+//if defined, will add #FNa command with easily reconfigurable volatile manufacturer and device IDs.
+#define MAC_SWITCHABLE
+
 /* Debug */
 #define MAC_debug_mode				0
 #if !defined(DEBUG) && MAC_debug_mode > 0
@@ -164,6 +167,11 @@ public:
 	bool eraseAddr(void);
 	FanetMacAddr readAddr();
 	bool isAddrStored(void) { return *(__IO uint64_t*)MAC_ADDR_BASE != UINT64_MAX; }
+#ifdef MAC_SWITCHABLE
+	/* volatile MaC addr api */
+	bool eraseVolatileAddr(void);
+	bool writeVolatileAddr(FanetMacAddr addr);
+#endif
 };
 
 extern FanetMac fmac;

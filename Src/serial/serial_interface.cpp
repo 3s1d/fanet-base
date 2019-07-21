@@ -47,6 +47,112 @@ void wire_task(void const * argument)
 
 /* Fanet Commands */
 
+#ifdef MAC_SWITCHABLE
+/* Address: #FNA manufacturer(hex),id(hex) */
+void Serial_Interface::fanet_cmd_addr(char *ch_str)
+{
+#if defined(DEBUG) && (SERIAL_debug_mode > 0)
+	printf("### Addr %s\n", ch_str);
+#endif
+	/* remove \r\n and any spaces*/
+	char *ptr = strchr(ch_str, '\r');
+	if(ptr == nullptr)
+		ptr = strchr(ch_str, '\n');
+	if(ptr != nullptr)
+		*ptr = '\0';
+	while(*ch_str == ' ')
+		ch_str++;
+
+	if(strlen(ch_str) == 0)
+	{
+		/* report addr */
+		char buf[64];
+		//take addr directly from flash, not from RAM copy
+		snprintf(buf, sizeof(buf), "%s%c %02X,%04X\n", FANET_CMD_START, CMD_ADDR, fmac.readAddr().manufacturer, fmac.readAddr().id);
+		print(buf);
+		return;
+	}
+
+	if(strstr(ch_str, "ERASE!") != NULL)
+	{
+		/* erase config */
+		//must never be used by the end user
+		if(fmac.eraseAddr())
+			print_line(FN_REPLY_OK);
+		else
+			print_line(FN_REPLYE_FN_UNKNOWN_CMD);
+		return;
+	}
+
+	/* address */
+	char *p = (char *)ch_str;
+	int manufacturer = strtol(p, NULL, 16);
+	p = strchr(p, SEPARATOR)+1;
+	int id = strtol(p, NULL, 16);
+
+	if(manufacturer<=0 || manufacturer >= 0xFE || id <= 0 || id >= 0xFFFF)
+	{
+		print_line(FN_REPLYE_INVALID_ADDR);
+	}
+	else if(fmac.writeAddr(FanetMacAddr(manufacturer, id)))
+		print_line(FN_REPLY_OK);
+	else
+		print_line(FN_REPLYE_ADDR_GIVEN);
+}
+
+/* Address: #FNa manufacturer(hex),id(hex).
+ * Controls volatile (which reset after power loss) manufacturer(hex) and id(hex) values. */
+void Serial_Interface::fanet_cmd_vaddr(char *ch_str)
+{
+#if defined(DEBUG) && (SERIAL_debug_mode > 0)
+	printf("### Volatile addr %s\n", ch_str);
+#endif
+	/* remove \r\n and any spaces*/
+	char *ptr = strchr(ch_str, '\r');
+	if(ptr == nullptr)
+		ptr = strchr(ch_str, '\n');
+	if(ptr != nullptr)
+		*ptr = '\0';
+	while(*ch_str == ' ')
+		ch_str++;
+
+	if(strlen(ch_str) == 0)
+	{
+		/* report addr */
+		char buf[64];
+		snprintf(buf, sizeof(buf), "%s%c %02X,%04X\n", FANET_CMD_START, CMD_ADDR, fmac.addr.manufacturer, fmac.addr.id);
+		print(buf);
+		return;
+	}
+
+	if(strstr(ch_str, "ERASE!") != NULL)
+	{
+		/* erase volatile config, which means simple switch back to non-volatile values */
+		if(fmac.eraseVolatileAddr())
+			print_line(FN_REPLY_OK);
+		else
+			print_line(FN_REPLYE_FN_UNKNOWN_CMD);
+		return;
+	}
+
+	/* address */
+	char *p = (char *)ch_str;
+	int manufacturer = strtol(p, NULL, 16);
+	p = strchr(p, SEPARATOR)+1;
+	int id = strtol(p, NULL, 16);
+
+	if(manufacturer<=0 || manufacturer >= 0xFE || id <= 0 || id >= 0xFFFF)
+	{
+		print_line(FN_REPLYE_INVALID_ADDR);
+	}
+	else if(fmac.writeVolatileAddr(FanetMacAddr(manufacturer, id)))
+		print_line(FN_REPLY_OK);
+	else
+		print_line(FN_REPLYE_FN_UNKNOWN_CMD);
+}
+
+#else
+
 /* Address: #FNA manufacturer(hex),id(hex) */
 void Serial_Interface::fanet_cmd_addr(char *ch_str)
 {
@@ -97,6 +203,8 @@ void Serial_Interface::fanet_cmd_addr(char *ch_str)
 	else
 		print_line(FN_REPLYE_ADDR_GIVEN);
 }
+
+#endif
 
 /* Transmit: #FNT type,dest_manufacturer,dest_id,forward,ack_required,length,length*2hex[,signature] */
 //note: all in HEX
@@ -563,6 +671,11 @@ void Serial_Interface::fanet_cmd_eval(char *str)
 	case CMD_ADDR:
 		fanet_cmd_addr(&str[strlen(FANET_CMD_START) + 1]);
 		break;
+#ifdef MAC_SWITCHABLE
+	case CMD_VOLATILE_ADDR:
+		fanet_cmd_vaddr(&str[strlen(FANET_CMD_START) + 1]);
+		break;
+#endif
 	case CMD_NEIGHBOR:
 		fanet_cmd_neighbor(&str[strlen(FANET_CMD_START) + 1]);
 		break;

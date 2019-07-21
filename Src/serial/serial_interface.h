@@ -61,6 +61,9 @@ void wire_task(void const * argument);
 #define CMD_STATE			'S'
 #define CMD_TRANSMIT			'T'
 #define CMD_ADDR			'A'
+#ifdef MAC_SWITCHABLE
+#define CMD_VOLATILE_ADDR		'a'
+#endif
 #define CMD_CONFIG			'C'
 #define CMD_MODE			'M'
 #define CMD_NEIGHBOR			'N'
@@ -161,6 +164,9 @@ private:
 	/* Normal Commands */
 	void fanet_cmd_eval(char *str);
 	void fanet_cmd_addr(char *ch_str);
+#ifdef MAC_SWITCHABLE
+	void fanet_cmd_vaddr(char *ch_str);
+#endif
 	void fanet_cmd_transmit(char *ch_str);
 	void fanet_cmd_neighbor(char *ch_str);
 	void fanet_cmd_promiscuous(char *ch_str);
