@@ -23,6 +23,9 @@
 #include "frame/fservice.h"
 #include "frame/ftracking.h"
 
+//todo store geofence..., generate ack....
+//todo forwarded against will bit.
+
 osMessageQId fanet_QueueID;
 
 void fanet_rtos(void)
@@ -140,21 +143,11 @@ void Fanet::handle(void)
 
 #endif
 
-
-	//remote config request/reply... maybe 2 (pos) has to move to 3
-	//next power settings! for low pwr + diasbale goe forwarding
-	//vario com, pos, replay, geofence....
-
-
-//todo disable forward, promiscous enabed if geo-based forward rule
-fmac.doForward = false;
-fmac.promiscuous = true;
-//todo
-
-
 	/* time for next replay broadcast? */
 	if(nextRfBroadcast < current)
 	{
+		osMutexWait(replayFeatureMutex, osWaitForever);
+
 		/* just in case, nothing is found delay next eval by 10sec */
 		nextRfBroadcast = current + 10000;
 
@@ -193,6 +186,26 @@ fmac.promiscuous = true;
 				nextRfBroadcast = current + FANET_TYPE6_TAU_MS;
 			}
 		}
+
+		osMutexRelease(replayFeatureMutex);
+	}
+
+	/* Geo-based forwarding */
+	osMutexWait(geoFenceMutex, osWaitForever);
+
+	bool doGeoForward = false;
+	for(uint16_t i=0; i<NELEM(geoFence) && !doGeoForward; i++)
+		doGeoForward |= geoFence[i].isActive();
+	fmac.promiscuous = doGeoForward || !!frameToConsole;
+	fmac.doForward = !doGeoForward;
+
+	osMutexRelease(geoFenceMutex);
+
+	/* power management */
+	if(power::isSufficiant() == false)
+	{
+		fmac.promiscuous = false;
+		fmac.doForward = false;
 	}
 
 	/* remove unavailable nodes */
@@ -359,13 +372,44 @@ void Fanet::handleFrame(FanetFrame *frm)
 
 		osMutexRelease(neighborMutex);
 	}
-	else
+
+	/* forward? */
+	if(frm->dest != fmac.addr)			//not addressed to us
 	{
-		/* not directly frame specifically for us. geoforward? */
+		/* get involved positions */
+		Coordinate3D srcPos = Coordinate3D();
+		Coordinate3D destPos = Coordinate3D();
+		FanetNeighbor *neighbor = getNeighbor_locked(frm->src);
+		if(neighbor != nullptr)
+		{
+			srcPos = neighbor->pos;
+			releaseNeighbors();
+		}
+		if(frm->dest != FanetMacAddr() && (neighbor = getNeighbor_locked(frm->dest)) != nullptr)
+		{
+			destPos = neighbor->pos;
+			releaseNeighbors();
+		}
 
-		//todo, inside areas required....
-		//todo dynamic replay features....
+		/* not directly frame specifically for us. geo-forward? */
+		osMutexWait(geoFenceMutex, osWaitForever);
 
+		bool doForward = false;
+		for(uint16_t i=0; i<NELEM(geoFence) && doForward == false; i++)
+		{
+			if(geoFence[i].isActive() == false)
+				continue;
+
+			bool srcInside = geoFence[i].inside(srcPos);
+			bool destInside = destPos != Coordinate3D() && geoFence[i].inside(destPos);
+
+			doForward |= (srcInside != destInside);
+
+			debug_printf("#%d: src%d dest%d -> %d\n", i, srcInside, destInside, doForward);
+//todo when sent last? enough bandwidth left?
+		}
+
+		osMutexRelease(geoFenceMutex);
 	}
 }
 
@@ -526,8 +570,10 @@ bool Fanet::writeReplayFeatures(void)
 
 	/* write */
 	bool error = false;
+	osMutexWait(replayFeatureMutex, osWaitForever);
 	for(uint16_t i=0; i<NELEM(replayFeature); i++)
 		error |= !replayFeature[i].write(FANET_RPADDR_BASE + i*FLASH_PAGESIZE/NELEM(replayFeature)/8*8);
+	osMutexRelease(replayFeatureMutex);
 
 	HAL_FLASH_Lock();
 	return !error;
@@ -535,8 +581,10 @@ bool Fanet::writeReplayFeatures(void)
 
 void Fanet::loadReplayFeatures(void)
 {
+	osMutexWait(replayFeatureMutex, osWaitForever);
 	for(uint16_t i=0; i<NELEM(replayFeature); i++)
 		replayFeature[i].load(FANET_RPADDR_BASE + i*FLASH_PAGESIZE/NELEM(replayFeature)/8*8);
+	osMutexRelease(replayFeatureMutex);
 }
 
 void Fanet::init(FanetMac *fmac)
@@ -545,6 +593,40 @@ void Fanet::init(FanetMac *fmac)
 	loadKey();
 	loadPosition();
 	loadReplayFeatures();
+}
+
+bool Fanet::isGeoForwarding(void)
+{
+	osMutexWait(geoFenceMutex, osWaitForever);
+	bool doGeoForward = false;
+	for(uint16_t i=0; i<NELEM(geoFence) && !doGeoForward; i++)
+		doGeoForward |= geoFence[i].isActive();
+	osMutexRelease(geoFenceMutex);
+
+	return doGeoForward;
+}
+
+GeoFence &Fanet::getGeoFence_locked(uint16_t num)
+{
+	osMutexWait(geoFenceMutex, osWaitForever);
+	return geoFence[num % NELEM(geoFence)];
+
+}
+
+void Fanet::releaseGeoFence(void)
+{
+	osMutexRelease(geoFenceMutex);
+}
+
+Replay &Fanet::getReplayFeature_locked(uint16_t num)
+{
+	osMutexWait(replayFeatureMutex, osWaitForever);
+	return replayFeature[num % NELEM(replayFeature)];
+}
+
+void Fanet::releaseReplayFeature(void)
+{
+	osMutexRelease(replayFeatureMutex);
 }
 
 Fanet fanet = Fanet();

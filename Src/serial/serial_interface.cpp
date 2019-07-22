@@ -632,7 +632,7 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 	/* get mandatory feature number */
 	char *p = (char *)ch_str;
 	const uint16_t num = strtol(p,  nullptr,  16);
-	if(num >= NELEM(fanet.replayFeature))
+	if(num >= fanet.numReplayFeature())
 	{
 		print_line(FR_REPLYE_OUTOFBOUND);
 		return;
@@ -642,23 +642,25 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 	uint8_t buf[150];
 	if(p == nullptr)
 	{
+		Replay& rf = fanet.getReplayFeature_locked(num);
 		/* print empty */
-		if(fanet.replayFeature[num].type == FanetFrame::TYPE_NONE)
+		if(rf.type == FanetFrame::TYPE_NONE)
 		{
 			print_line(FR_REPLYM_EMPTY);
+			fanet.releaseReplayFeature();
 			return;
 		}
 
 		/* print feature */
-		snprintf((char *)buf, sizeof(buf), "%s%c %X,%X,%X,%X,", REMOTE_CMD_START, CMD_REMOTEREPLAY, num, fanet.replayFeature[num].type,
-				fanet.replayFeature[num].windSector, fanet.replayFeature[num].forward);
+		snprintf((char *)buf, sizeof(buf), "%s%c %X,%X,%X,%X,", REMOTE_CMD_START, CMD_REMOTEREPLAY, num, rf.type, rf.windSector, rf.forward);
 		print((char *)buf);
 
-		for(uint16_t i=0; i<fanet.replayFeature[num].payloadLength; i++)
+		for(uint16_t i=0; i<rf.payloadLength; i++)
 		{
-			snprintf((char *)buf, sizeof(buf), "%02X", fanet.replayFeature[num].payload[i]);
+			snprintf((char *)buf, sizeof(buf), "%02X", rf.payload[i]);
 			print((char *)buf);
 		}
+		fanet.releaseReplayFeature();
 		print("\n");
 		return;
 	}
@@ -670,19 +672,21 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 	{
 
 		type = static_cast<FanetFrame::FrameType_t>(strtol(p,  nullptr,  16));
-printf("type: %d (num%d)\n", type, num);
 		/* find next */
 		p = strchr(p, SEPARATOR);
 		if(p == nullptr)
 		{
 			if(type == FanetFrame::TYPE_NONE)
 			{
-				fanet.replayFeature[num].init(0, FanetFrame::TYPE_NONE, false, nullptr, 0);
+				/* delete */
+				Replay& rf = fanet.getReplayFeature_locked(num);
+				rf.init(0, FanetFrame::TYPE_NONE, false, nullptr, 0);
+				fanet.releaseReplayFeature();
+
 				if(fanet.writeReplayFeatures())
 					print_line(FR_REPLY_OK);
 				else
 					print_line(FR_REPLYE_WRITEFAILED);
-printf("del %d\n", num);
 			}
 			else
 			{
@@ -703,7 +707,6 @@ printf("del %d\n", num);
 	if(*p != SEPARATOR && *p != '\0')
 	{
 		windSector = strtol(p,  nullptr,  16);
-printf("wind %X\n", windSector);
 		/* find next */
 		p = strchr(p, SEPARATOR);
 		if(p == nullptr)
@@ -724,7 +727,6 @@ printf("wind %X\n", windSector);
 	if(*p != SEPARATOR && *p != '\0')
 	{
 		forward = !!strtol(p,  nullptr,  16);
-printf("forward %X\n", forward);
 		/* find next */
 		p = strchr(p, SEPARATOR);
 		if(p == nullptr)
@@ -750,10 +752,12 @@ printf("forward %X\n", forward);
 			return;
 		}
 		buf[i] = strtol(sstr,  nullptr,  16);
-printf("data %x\n", buf[i]);
 	}
 
-	fanet.replayFeature[num].init(windSector, type, forward, buf, strlen(p)/2);
+	Replay& rf = fanet.getReplayFeature_locked(num);
+	rf.init(windSector, type, forward, buf, strlen(p)/2);
+	fanet.releaseReplayFeature();
+
 	if(fanet.writeReplayFeatures() == true)
 		print_line(FR_REPLY_OK);
 	else

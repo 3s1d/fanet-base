@@ -22,11 +22,14 @@ private:
 	float horizontalDistance(const Coordinate3D &poi);
 	float verticalDistance(const Coordinate3D &poi);
 public:
-	GeoFence();
-	~GeoFence() { if(vertex != nullptr) delete vertex; }
+	GeoFence() { }
+	~GeoFence() { if(vertex != nullptr) delete[] vertex; }
 
 	void init(uint8_t num, float ceiling, float floor);
+	void remove(void);
 	bool add(uint8_t idx, Coordinate2D &pos);
+
+	bool isActive(void);
 	bool inside(Coordinate3D &poi);
 };
 

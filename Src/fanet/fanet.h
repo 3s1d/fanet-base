@@ -51,17 +51,7 @@ void fanet_task(void const * argument);
 
 #include "replay.h"
 #include "fmac.h"
-
-/*
-typedef struct
-{
-	uint8_t type;
-	uint8_t payloadLength;
-	uint8_t windSector;
-	uint8_t padding;
-	uint8_t payload[132];
-} __attribute__((packed)) rpf_t;			//note: size has to divide'able by 8 AND sizeof(rpf_t) <= FLASH_PAGESIZE/12
-*/
+#include "geofence.h"
 
 class Fanet : public Fapp
 {
@@ -78,6 +68,16 @@ private:
 	std::list<FanetNeighbor*> neighbors;
 	osMutexDef(neighborMutex);
 	osMutexId neighborMutex = osMutexCreate(osMutex(neighborMutex));
+
+	/* forwarding */
+	osMutexDef(geoFenceMutex);
+	osMutexId geoFenceMutex = osMutexCreate(osMutex(geoFenceMutex));
+	GeoFence geoFence[4];
+
+	/* replay features */
+	osMutexDef(replayFeatureMutex);
+	osMutexId replayFeatureMutex = osMutexCreate(osMutex(replayFeatureMutex));
+	Replay replayFeature[12];
 
 	/* broadcasts */
 	uint32_t nextRfBroadcast = 1000;
@@ -106,7 +106,6 @@ public:
 	const char *key = _key;
 	const Coordinate3D &position;
 	const float &heading;
-	Replay replayFeature[12];									//will be initialized upon constructor
 
 	const int16_t &frameToConsole;
 
@@ -131,9 +130,20 @@ public:
 	bool isNeighbor(FanetMacAddr & addr);
 	uint16_t numNeighbors(void);
 
+	/* forwarding */
+	bool isGeoForwarding(void);
+	uint16_t numGeoFences(void) { return NELEM(geoFence); }
+	GeoFence &getGeoFence_locked(uint16_t num);
+	void releaseGeoFence(void);
+
+	/* replay feature */
+	uint16_t numReplayFeature(void) { return NELEM(replayFeature); }
+	Replay &getReplayFeature_locked(uint16_t num);
+	void releaseReplayFeature(void);
+
 	/* manual / serial */
 	void manualServiceSent(void) { noAutoServiceBefore = osKernelSysTick() + 180000; }			//disable for 3min
-	void setFrameToConsole(int16_t what) { fmac.promiscuous = (what == 2); /* || geofoarwrding */ _frameToConsole = what;}
+	void setFrameToConsole(int16_t what) { fmac.promiscuous = (what == 2) || isGeoForwarding(); _frameToConsole = what; }
 
 	/* ACK */
 	void ackReset(void) {ackAddr = FanetMacAddr(); ackRes = WAIT; }

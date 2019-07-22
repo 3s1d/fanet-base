@@ -71,7 +71,7 @@ public:
 	void setTrackingType(FanetDef::aircraft_t ac) {_aircraft = ac; _status = FanetDef::AIRBORNE; }
 	void setTrackingType(FanetDef::status_t stat);
 	void setPosition(Coordinate3D &newPos) {_pos = newPos; }
-	void setPosition(Coordinate2D &newPos) {_pos = newPos; _pos.altitude = -1000.0f; }
+	void setPosition(Coordinate2D &newPos) {_pos = newPos; _pos.altitude = 0.0f; }
 	void setPosition(Coordinate2D &newPos, float altitude) {_pos = newPos; _pos.altitude = altitude; }
 	bool hasPosition(void) { return pos != Coordinate3D(); }
 

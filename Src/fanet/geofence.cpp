@@ -5,6 +5,7 @@
  *      Author: sid
  */
 
+#include <stdio.h>
 #include <math.h>
 #include <algorithm>
 
@@ -25,6 +26,13 @@ void GeoFence::init(uint8_t num, float ceiling, float floor)
 	vertex = new Coordinate2D[num];
 }
 
+void GeoFence::remove(void)
+{
+	num = 0;
+	delete[] vertex;
+	vertex = nullptr;
+}
+
 bool GeoFence::add(uint8_t idx, Coordinate2D &pos)
 {
 	/* out of index */
@@ -37,7 +45,7 @@ bool GeoFence::add(uint8_t idx, Coordinate2D &pos)
 
 bool GeoFence::inside(Coordinate3D &poi)
 {
-	return verticalDistance(poi) < 0.0f && horizontalDistance(poi) < 0.0f;
+	return verticalDistance(poi) <= 0.0f && horizontalDistance(poi) <= 0.0f;
 }
 
 float GeoFence::horizontalDistance(const Coordinate3D &poi)
@@ -99,6 +107,7 @@ float GeoFence::horizontalDistance(const Coordinate3D &poi)
 	if (fabsf(windingCount) > M_PI_f && minDst < 1.0f)
 		minDst = -minDst;
 
+printf("hor %.f\n", minDst* WGS84_A_RADIUS);
 	return minDst * WGS84_A_RADIUS;
 }
 
@@ -110,5 +119,11 @@ float GeoFence::verticalDistance(const Coordinate3D &poi)
 	/* ceiling */
 	float aboveCeiling = poi.altitude - ceiling;
 
+printf("vert %.f\n", std::max(belowFloor, aboveCeiling));
 	return std::max(belowFloor, aboveCeiling);
+}
+
+bool GeoFence::isActive(void)
+{
+	return vertex != nullptr && num > 0;
 }

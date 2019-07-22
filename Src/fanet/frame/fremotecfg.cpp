@@ -111,38 +111,64 @@ bool FanetFrameRemoteConfig::position(uint8_t *payload, uint16_t payload_length)
 bool FanetFrameRemoteConfig::replayFeature(uint16_t num, uint8_t *payload, uint16_t len)
 {
 	/* out of bound */
-	if(num >= NELEM(fanet.replayFeature))
+	if(num >= fanet.numReplayFeature())
 		return false;
 
+	Replay& rf = fanet.getReplayFeature_locked(num);
 	if(len < 2)
-		fanet.replayFeature[num].init(0, static_cast<FanetFrame::FrameType_t>(0), false, nullptr, 0);	//remove feature
+		rf.init(0, static_cast<FanetFrame::FrameType_t>(0), false, nullptr, 0);	//remove feature
 	else
-		fanet.replayFeature[num].init(payload[0], static_cast<FanetFrame::FrameType_t>(payload[1]&0x3F), !!(payload[1]&0x40),
-				&payload[2], len-2);								// copy feature
+		rf.init(payload[0], static_cast<FanetFrame::FrameType_t>(payload[1]&0x3F), !!(payload[1]&0x40),	&payload[2], len-2); // copy feature
+	fanet.releaseReplayFeature();
 
 	return fanet.writeReplayFeatures();
 }
 
 bool FanetFrameRemoteConfig::geofenceFeature(uint16_t num, uint8_t *payload, uint16_t len)
 {
-	//todo
-	debug_printf("gf %d\n", num);
-	Coordinate2D pos;
-	if(len < 2+6+4+4)											//min 2 altitudes, 3 positions
+	/* out of bounce */
+	if(num >= fanet.numGeoFences())
 		return false;
+
+	/* remove */
+	if(len == 0)
+	{
+		GeoFence& gf = fanet.getGeoFence_locked(num);
+		gf.remove();
+		fanet.releaseGeoFence();
+		return true;
+	}
+
+	/* min 2 altitudes, 3 positions */
+	if(len < 2+6+4+4)
+		return false;
+
+	/* altitudes */
 	uint16_t idx = 0;
 	int16_t btm = (((int8_t)payload[idx++]) + 109) * 25;
 	int16_t top = (((int8_t)payload[idx++]) + 109) * 25;
+
+	/* prepare fence */
+	GeoFence& gf = fanet.getGeoFence_locked(num);
+	gf.init((len-idx-2) / 4, top, btm);
+
+	/* reference */
+	Coordinate2D pos;
 	FanetFrame::payload2coord_absolute(&payload[idx], pos);
 	idx += 6;
-	debug_printf("%d-%dm %.5f,%.5f\n", btm, top, rad2deg(pos.latitude), rad2deg(pos.longitude));
+	uint8_t numVert = 0;
+	gf.add(numVert++, pos);
 
+	/* other vertices */
 	for(uint16_t i=idx; i<len-3; i+=4)
 	{
-		float lat = FanetFrame::payload2coord_compressed((uint16_t *)&payload[i], pos.latitude);
-		float lon = FanetFrame::payload2coord_compressed((uint16_t *)&payload[i+2], pos.longitude);
-		debug_printf("%.5f,%.5f\n", rad2deg(lat), rad2deg(lon));
+		Coordinate2D v = Coordinate2D(FanetFrame::payload2coord_compressed((uint16_t *)&payload[i], pos.latitude),
+				FanetFrame::payload2coord_compressed((uint16_t *)&payload[i+2], pos.longitude));
+		gf.add(numVert++, v);
 	}
+	fanet.releaseGeoFence();
+
+	//todo write fences!
 	return false;
 }
 
@@ -180,14 +206,15 @@ void FanetFrameRemoteConfig::request(uint8_t subtype, FanetMacAddr &addr)
 	else if(subtype >= FANET_RC_REPLAY_LOWER && subtype <= FANET_RC_REPLAY_UPPER)
 	{
 		const uint16_t idx = subtype-FANET_RC_REPLAY_LOWER;
-		if(fanet.replayFeature[idx].payloadLength > 0)
+		Replay& rf = fanet.getReplayFeature_locked(idx);
+		if(rf.payloadLength > 0)
 		{
-			rfrm->payloadLength = 1+2+fanet.replayFeature[idx].payloadLength;
+			rfrm->payloadLength = 1 + 2 + rf.payloadLength;
 			rfrm->payload = new uint8_t[rfrm->payloadLength];
 			rfrm->payload[0] = subtype;
-			rfrm->payload[1] = fanet.replayFeature[idx].windSector;
-			rfrm->payload[2] = fanet.replayFeature[idx].type | (fanet.replayFeature[idx].forward<<6);
-			memcpy(&rfrm->payload[3], fanet.replayFeature[idx].payload, fanet.replayFeature[idx].payloadLength);
+			rfrm->payload[1] = rf.windSector;
+			rfrm->payload[2] = rf.type | (rf.forward<<6);
+			memcpy(&rfrm->payload[3], rf.payload, rf.payloadLength);
 		}
 		else
 		{
@@ -196,6 +223,7 @@ void FanetFrameRemoteConfig::request(uint8_t subtype, FanetMacAddr &addr)
 			rfrm->payload = new uint8_t[rfrm->payloadLength];
 			rfrm->payload[0] = subtype;
 		}
+		fanet.releaseReplayFeature();
 	}
 	//todo geofaence
 
