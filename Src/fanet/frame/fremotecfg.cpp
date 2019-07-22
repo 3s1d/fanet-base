@@ -125,6 +125,7 @@ bool FanetFrameRemoteConfig::replayFeature(uint16_t num, uint8_t *payload, uint1
 
 bool FanetFrameRemoteConfig::geofenceFeature(uint16_t num, uint8_t *payload, uint16_t len)
 {
+	//todo
 	debug_printf("gf %d\n", num);
 	Coordinate2D pos;
 	if(len < 2+6+4+4)											//min 2 altitudes, 3 positions
