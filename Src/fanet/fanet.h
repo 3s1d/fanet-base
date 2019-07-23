@@ -46,7 +46,8 @@ void fanet_task(void const * argument);
 #define FANET_POSADDR_BASE			(FLASH_BASE + FANET_POSADDR_PAGE*FLASH_PAGESIZE)
 #define FANET_RPADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 4)
 #define FANET_RPADDR_BASE			(FLASH_BASE + FANET_RPADDR_PAGE*FLASH_PAGESIZE)
-
+#define FANET_GEOFENCEADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 5)
+#define FANET_GEOFENCEADDR_BASE			(FLASH_BASE + FANET_GEOFENCEADDR_PAGE*FLASH_PAGESIZE)
 #define FANET_KEY_SIZE				16
 
 #include "replay.h"
@@ -101,6 +102,7 @@ private:
 	void loadKey(void);
 	void loadPosition(void);
 	void loadReplayFeatures(void);
+	void loadGeoFences(void);
 
 public:
 	const char *key = _key;
@@ -137,7 +139,7 @@ public:
 	void releaseGeoFence(void);
 
 	/* replay feature */
-	uint16_t numReplayFeature(void) { return NELEM(replayFeature); }
+	uint16_t numReplayFeatures(void) { return NELEM(replayFeature); }
 	Replay &getReplayFeature_locked(uint16_t num);
 	void releaseReplayFeature(void);
 
@@ -153,6 +155,7 @@ public:
 	bool writeKey(char *newKey);
 	bool writePosition(Coordinate3D newPos, float newHeading);
 	bool writeReplayFeatures(void);
+	bool writeGeoFences(void);
 };
 
 extern Fanet fanet;

@@ -111,7 +111,7 @@ bool FanetFrameRemoteConfig::position(uint8_t *payload, uint16_t payload_length)
 bool FanetFrameRemoteConfig::replayFeature(uint16_t num, uint8_t *payload, uint16_t len)
 {
 	/* out of bound */
-	if(num >= fanet.numReplayFeature())
+	if(num >= fanet.numReplayFeatures())
 		return false;
 
 	Replay& rf = fanet.getReplayFeature_locked(num);
@@ -168,8 +168,7 @@ bool FanetFrameRemoteConfig::geofenceFeature(uint16_t num, uint8_t *payload, uin
 	}
 	fanet.releaseGeoFence();
 
-	//todo write fences!
-	return false;
+	return fanet.writeGeoFences();
 }
 
 void FanetFrameRemoteConfig::request(uint8_t subtype, FanetMacAddr &addr)
@@ -195,18 +194,10 @@ void FanetFrameRemoteConfig::request(uint8_t subtype, FanetMacAddr &addr)
 			rfrm->payload[7] = static_cast<uint8_t>(static_cast<int16_t>(std::round(fanet.position.altitude/25.0f)) - 109);
 			rfrm->payload[8] = static_cast<uint8_t>(std::round(fanet.heading/360.0f*256.0f));
 		}
-		else
-		{
-			/* no position present */
-			rfrm->payloadLength = 1;
-			rfrm->payload = new uint8_t[rfrm->payloadLength];
-			rfrm->payload[0] = FANET_RC_POSITION;
-		}
 	}
 	else if(subtype >= FANET_RC_REPLAY_LOWER && subtype <= FANET_RC_REPLAY_UPPER)
 	{
-		const uint16_t idx = subtype-FANET_RC_REPLAY_LOWER;
-		Replay& rf = fanet.getReplayFeature_locked(idx);
+		Replay& rf = fanet.getReplayFeature_locked(subtype - FANET_RC_REPLAY_LOWER);
 		if(rf.payloadLength > 0)
 		{
 			rfrm->payloadLength = 1 + 2 + rf.payloadLength;
@@ -216,16 +207,42 @@ void FanetFrameRemoteConfig::request(uint8_t subtype, FanetMacAddr &addr)
 			rfrm->payload[2] = rf.type | (rf.forward<<6);
 			memcpy(&rfrm->payload[3], rf.payload, rf.payloadLength);
 		}
-		else
-		{
-			/* no position present */
-			rfrm->payloadLength = 1;
-			rfrm->payload = new uint8_t[rfrm->payloadLength];
-			rfrm->payload[0] = subtype;
-		}
 		fanet.releaseReplayFeature();
 	}
-	//todo geofaence
+	else if(subtype >= FANET_RC_GEOFENCE_LOWER && subtype <= FANET_RC_GEOFENCE_UPPER)
+	{
+		GeoFence& gf = fanet.getGeoFence_locked(subtype - FANET_RC_GEOFENCE_LOWER);
+		if(gf.num > 0 && gf.vertex != nullptr)
+		{
+			rfrm->payloadLength = 1 + 2 + gf.num*4+2;
+			rfrm->payload = new uint8_t[rfrm->payloadLength];
+			uint16_t idx = 0;
+			rfrm->payload[idx++] = subtype;
+			rfrm->payload[idx++] = static_cast<uint8_t>(static_cast<int16_t>(std::round(gf.floor/25.0f)) - 109);
+			rfrm->payload[idx++] = static_cast<uint8_t>(static_cast<int16_t>(std::round(gf.ceiling/25.0f)) - 109);
+
+			/* vertices */
+			coord2payload_absolut(gf.vertex[0], &rfrm->payload[idx]);
+			idx += 6;
+			for(uint16_t i=1; i<gf.num && idx<rfrm->payloadLength; i++)
+			{
+				*((uint16_t *)&rfrm->payload[idx]) = coord2payload_compressed(gf.vertex[i].latitude);
+				*((uint16_t *)&rfrm->payload[idx+2]) = coord2payload_compressed(gf.vertex[i].longitude);
+				idx += 4;
+			}
+		}
+		fanet.releaseGeoFence();
+	}
+
+	/* not present / unknown */
+	if(rfrm->payloadLength == 0 || rfrm->payload == nullptr)
+	{
+		rfrm->payloadLength = 1;
+		if(rfrm->payload != nullptr)
+			delete[] rfrm->payload;
+		rfrm->payload = new uint8_t[rfrm->payloadLength];
+		rfrm->payload[0] = subtype;
+	}
 
 	/* send if filed */
 	if(rfrm->payloadLength == 0 || fmac.transmit(rfrm) != 0)

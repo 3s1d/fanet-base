@@ -9,7 +9,10 @@
 #include <math.h>
 #include <algorithm>
 
+#include "stm32l4xx.h"
+
 #include "common.h"
+#include "print.h"
 #include "../phy/angle.h"
 #include "../phy/triangle.h"
 #include "geofence.h"
@@ -107,7 +110,7 @@ float GeoFence::horizontalDistance(const Coordinate3D &poi)
 	if (fabsf(windingCount) > M_PI_f && minDst < 1.0f)
 		minDst = -minDst;
 
-printf("hor %.f\n", minDst* WGS84_A_RADIUS);
+	debug_printf("hor %.f\n", minDst* WGS84_A_RADIUS);
 	return minDst * WGS84_A_RADIUS;
 }
 
@@ -119,11 +122,82 @@ float GeoFence::verticalDistance(const Coordinate3D &poi)
 	/* ceiling */
 	float aboveCeiling = poi.altitude - ceiling;
 
-printf("vert %.f\n", std::max(belowFloor, aboveCeiling));
+	debug_printf("vert %.f\n", std::max(belowFloor, aboveCeiling));
 	return std::max(belowFloor, aboveCeiling);
 }
 
 bool GeoFence::isActive(void)
 {
 	return vertex != nullptr && num > 0;
+}
+
+bool GeoFence::write(uint32_t addr)
+{
+	/* header */
+	uint64_t container = ((uint64_t) ((uint8_t)num)) << 0;
+	if(num == 0 || vertex == nullptr)	// fence unused
+		container = UINT64_MAX;
+	if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, addr, container) != HAL_OK)
+		return false;
+	addr += 8;
+
+	/* done writing */
+	if(container == UINT64_MAX)
+		return true;
+
+	/* altitudes */
+	container = 	((uint64_t) ((uint8_t *)&floor)[0]) << 0    | ((uint64_t) ((uint8_t *)&floor)[1]) << 8    |
+			((uint64_t) ((uint8_t *)&floor)[2]) << 16   | ((uint64_t) ((uint8_t *)&floor)[3]) << 24   |
+			((uint64_t) ((uint8_t *)&ceiling)[0]) << 32 | ((uint64_t) ((uint8_t *)&ceiling)[1]) << 40 |
+			((uint64_t) ((uint8_t *)&ceiling)[2]) << 48 | ((uint64_t) ((uint8_t *)&ceiling)[3]) << 56;
+	if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, addr, container) != HAL_OK)
+		return false;
+	addr += 8;
+
+	/* vertices */
+	for(uint16_t i=0; i<num && i<60; i++)
+	{
+		container = 	((uint64_t) ((uint8_t *)&vertex[i].latitude)[0]) << 0   | ((uint64_t) ((uint8_t *)&vertex[i].latitude)[1]) << 8   |
+				((uint64_t) ((uint8_t *)&vertex[i].latitude)[2]) << 16  | ((uint64_t) ((uint8_t *)&vertex[i].latitude)[3]) << 24  |
+				((uint64_t) ((uint8_t *)&vertex[i].longitude)[0]) << 32 | ((uint64_t) ((uint8_t *)&vertex[i].longitude)[1]) << 40 |
+				((uint64_t) ((uint8_t *)&vertex[i].longitude)[2]) << 48 | ((uint64_t) ((uint8_t *)&vertex[i].longitude)[3]) << 56;
+		if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, addr, container) != HAL_OK)
+			return false;
+		addr += 8;
+	}
+
+	return true;
+}
+
+void GeoFence::load(uint32_t addr)
+{
+	__IO uint64_t *ptr = (__IO uint64_t*)addr;
+
+	/* num vertices */
+	if(*ptr > 60)
+	{
+		/* empty */
+		remove();
+		return;
+	}
+	uint8_t num = *ptr++;
+
+	/* altitudes */
+	float *fptr = (float *) ptr;
+	float floor = *fptr++;
+	float ceiling = *fptr++;
+	init(num, ceiling, floor);
+	//debug_printf("Geo Fence %.f-%.fm (%d)\n", floor, ceiling, num);
+
+	/* vertices */
+	for(uint16_t i=0; i<num; i++)
+	{
+		float lat = *fptr++;
+		float lon = *fptr++;
+		Coordinate2D v = Coordinate2D(lat, lon);
+		add(i, v);
+		//debug_printf("#%d %.4f,%4f\n", i, rad2deg(lat), rad2deg(lon));
+	}
+
+
 }

@@ -23,7 +23,7 @@
 #include "frame/fservice.h"
 #include "frame/ftracking.h"
 
-//todo store geofence..., generate ack....
+//todo geofence serial
 //todo forwarded against will bit.
 
 osMessageQId fanet_QueueID;
@@ -587,12 +587,52 @@ void Fanet::loadReplayFeatures(void)
 	osMutexRelease(replayFeatureMutex);
 }
 
+bool Fanet::writeGeoFences(void)
+{
+	/* determine page */
+	FLASH_EraseInitTypeDef eraseInit = {0};
+	eraseInit.TypeErase = FLASH_TYPEERASE_PAGES;
+	eraseInit.Banks = FLASH_BANK_1;
+	eraseInit.Page = FANET_GEOFENCEADDR_PAGE;
+	eraseInit.NbPages = 1;
+
+	/* erase */
+	uint32_t sectorError = 0;
+	if(HAL_FLASH_Unlock() != HAL_OK)
+		return false;
+	__HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
+	if(HAL_FLASHEx_Erase(&eraseInit, &sectorError) != HAL_OK)
+	{
+		HAL_FLASH_Lock();
+		return false;
+	}
+
+	/* write */
+	bool error = false;
+	osMutexWait(geoFenceMutex, osWaitForever);
+	for(uint16_t i=0; i<NELEM(geoFence); i++)
+		error |= !geoFence[i].write(FANET_GEOFENCEADDR_BASE + i*FLASH_PAGESIZE/NELEM(geoFence)/8*8);
+	osMutexRelease(geoFenceMutex);
+
+	HAL_FLASH_Lock();
+	return !error;
+}
+
+void Fanet::loadGeoFences(void)
+{
+	osMutexWait(geoFenceMutex, osWaitForever);
+	for(uint16_t i=0; i<NELEM(geoFence); i++)
+		geoFence[i].load(FANET_GEOFENCEADDR_BASE + i*FLASH_PAGESIZE/NELEM(geoFence)/8*8);
+	osMutexRelease(geoFenceMutex);
+}
+
 void Fanet::init(FanetMac *fmac)
 {
 	/* read configuration */
 	loadKey();
 	loadPosition();
 	loadReplayFeatures();
+	loadGeoFences();
 }
 
 bool Fanet::isGeoForwarding(void)

@@ -38,7 +38,7 @@ uint16_t FanetFrame::coord2payload_compressed(float rad)
 	return ((dec_int&0x7FFF) | (!!deg_odd<<15));
 }
 
-void FanetFrame::coord2payload_absolut(const Coordinate3D &coord, uint8_t *buf)
+void FanetFrame::coord2payload_absolut(const Coordinate2D &coord, uint8_t *buf)
 {
 	if(buf == nullptr)
 		return;

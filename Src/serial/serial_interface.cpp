@@ -632,7 +632,7 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 	/* get mandatory feature number */
 	char *p = (char *)ch_str;
 	const uint16_t num = strtol(p,  nullptr,  16);
-	if(num >= fanet.numReplayFeature())
+	if(num >= fanet.numReplayFeatures())
 	{
 		print_line(FR_REPLYE_OUTOFBOUND);
 		return;

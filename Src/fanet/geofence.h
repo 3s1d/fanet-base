@@ -9,9 +9,12 @@
 #define FANET_GEOFENCE_H_
 
 #include "../phy/coordinate.h"
+#include "frame/fremotecfg.h"
 
 class GeoFence
 {
+	friend class FanetFrameRemoteConfig;
+
 private:
 	/* area */
 	Coordinate2D *vertex = nullptr;
@@ -31,6 +34,9 @@ public:
 
 	bool isActive(void);
 	bool inside(Coordinate3D &poi);
+
+	bool write(uint32_t addr);
+	void load(uint32_t addr);
 };
 
 
