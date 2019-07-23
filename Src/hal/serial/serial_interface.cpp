@@ -766,7 +766,198 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 
 void Serial_Interface::fanet_remote_geofence(char *ch_str)
 {
-	//todo
+	/* remove \r\n and any spaces*/
+	char *ptr = strchr(ch_str, '\r');
+	if(ptr == nullptr)
+		ptr = strchr(ch_str, '\n');
+	if(ptr != nullptr)
+		*ptr = '\0';
+	while(*ch_str == ' ')
+		ch_str++;
+
+	if(strlen(ch_str) == 0)
+	{
+		print_line(FR_REPLYE_CMDTOOSHORT);
+		return;
+	}
+
+	/* get mandatory feature number */
+	char *p = (char *)ch_str;
+	const uint16_t num = strtol(p,  nullptr,  16);
+	if(num >= fanet.numGeoFences())
+	{
+		print_line(FR_REPLYE_OUTOFBOUND);
+		return;
+	}
+
+	p = strchr(p, SEPARATOR);
+	char buf[64];
+	if(p == nullptr)
+	{
+		GeoFence& gf = fanet.getGeoFence_locked(num);
+		/* print empty */
+		if(gf.num == 0 || gf.vertex == nullptr)
+		{
+			print_line(FR_REPLYM_EMPTY);
+			fanet.releaseGeoFence();
+			return;
+		}
+
+		/* print feature */
+		snprintf(buf, sizeof(buf), "%s%c %X,%X,%X,%X", REMOTE_CMD_START, CMD_REMOTEGEOFENCE,
+				num, gf.num, static_cast<int>(gf.floor), static_cast<int>(gf.ceiling));
+		print(buf);
+
+		for(uint16_t i=0; i<gf.num; i++)
+		{
+			snprintf(buf, sizeof(buf), ",%.5f,%.5f", rad2deg(gf.vertex[i].latitude), rad2deg(gf.vertex[i].longitude));
+			print(buf);
+		}
+		fanet.releaseGeoFence();
+		print("\n");
+		return;
+	}
+	p++;
+
+	/* number of vertices */
+	uint16_t numVert = 0;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+		numVert = strtol(p,  nullptr,  16);
+		/* find next */
+		p = strchr(p, SEPARATOR);
+		if(p == nullptr)
+		{
+			/* delete */
+			GeoFence& gf = fanet.getGeoFence_locked(num);
+			gf.remove();
+			fanet.releaseGeoFence();
+
+			if(fanet.writeGeoFences() == true)
+				print_line(FR_REPLY_OK);
+			else
+				print_line(FR_REPLYE_WRITEFAILED);
+			return;
+		}
+	}
+	else if(*p == '\0')
+	{
+		print_line(FR_REPLYE_CMD_TOO_SHORT);
+		return;
+	}
+	p++;
+
+	/* floor */
+	float floor = 0.0f;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+		floor = strtol(p,  nullptr,  16);
+		/* find next */
+		p = strchr(p, SEPARATOR);
+		if(p == nullptr)
+		{
+			print_line(FN_REPLYE_CMD_TOO_SHORT);
+			return;
+		}
+	}
+	else if(*p == '\0')
+	{
+		print_line(FR_REPLYE_CMD_TOO_SHORT);
+		return;
+	}
+	p++;
+
+	/* ceiling */
+	float ceiling = 0.0f;
+	if(*p != SEPARATOR && *p != '\0')
+	{
+		ceiling = strtol(p,  nullptr,  16);
+		/* find next */
+		p = strchr(p, SEPARATOR);
+		if(p == nullptr)
+		{
+			print_line(FN_REPLYE_CMD_TOO_SHORT);
+			return;
+		}
+	}
+	else if(*p == '\0')
+	{
+		print_line(FR_REPLYE_CMD_TOO_SHORT);
+		return;
+	}
+	p++;
+
+	GeoFence& gf = fanet.getGeoFence_locked(num);
+	gf.init(numVert, ceiling, floor);
+	for(uint16_t i=0; i<numVert; i++)
+	{
+		/* just in case */
+		if(p == nullptr)
+		{
+			print_line(FN_REPLYE_CMD_TOO_SHORT);
+			gf.remove();
+			fanet.releaseGeoFence();
+			return;
+		}
+
+		Coordinate2D pos;
+
+		/* latitude */
+		if(*p != SEPARATOR && *p != '\0')
+		{
+			pos.latitude = deg2rad(atof(p));
+			/* find next */
+			p = strchr(p, SEPARATOR);
+			if(p == nullptr)
+			{
+				print_line(FN_REPLYE_CMD_TOO_SHORT);
+				gf.remove();
+				fanet.releaseGeoFence();
+				return;
+			}
+		}
+		else if(*p == '\0')
+		{
+			print_line(FR_REPLYE_CMD_TOO_SHORT);
+			gf.remove();
+			fanet.releaseGeoFence();
+			return;
+		}
+		p++;
+
+		/* longitude */
+		if(*p != SEPARATOR && *p != '\0')
+		{
+			pos.longitude = deg2rad(atof(p));
+			/* find next */
+			p = strchr(p, SEPARATOR);
+			if(p == nullptr && i<numVert-1)
+			{
+				print_line(FN_REPLYE_CMD_TOO_SHORT);
+				gf.remove();
+				fanet.releaseGeoFence();
+				return;
+			}
+		}
+		else if(*p == '\0')
+		{
+			print_line(FR_REPLYE_CMD_TOO_SHORT);
+			gf.remove();
+			fanet.releaseGeoFence();
+			return;
+		}
+		p++;
+
+		/* add vertex */
+		gf.add(i, pos);
+
+	}
+	fanet.releaseGeoFence();
+
+	if(fanet.writeGeoFences() == true)
+		print_line(FR_REPLY_OK);
+	else
+		print_line(FR_REPLYE_WRITEFAILED);
 }
 
 /* mux string */

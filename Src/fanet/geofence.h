@@ -14,6 +14,7 @@
 class GeoFence
 {
 	friend class FanetFrameRemoteConfig;
+	friend class Serial_Interface;
 
 private:
 	/* area */
@@ -38,7 +39,5 @@ public:
 	bool write(uint32_t addr);
 	void load(uint32_t addr);
 };
-
-
 
 #endif /* FANET_GEOFENCE_H_ */

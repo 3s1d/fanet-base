@@ -137,7 +137,8 @@ void wire_task(void const * argument);
  * Remote Key:		#FRK key
  * Replay Feature:	#FRF num(hex)[,type(hex),windsector(hex, always=FF),forwarding(0..1),payload]		note: only until num gives an reply,
  * 														note: #FRR num,0 -> clean
- * GeoFrence		#FRG num(0..3)[,num(hex)[,lat,lon] 'num' times]						note: #FRG num,0 -> clean
+ * GeoFrence		#FRG num(0..3)[,numVertices(hex)[,floor(hex m),ceiling(hex m),[,lat(float deg),lon(float deg)] 'num' times]]
+ * 														note: #FRG num,0 -> clean
  *
  * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload
  *
