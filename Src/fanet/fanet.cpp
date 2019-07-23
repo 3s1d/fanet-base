@@ -12,10 +12,10 @@
 #include "print.h"
 
 #include "../hal/power.h"
+#include "../hal/serial/serial_interface.h"
 #include "../hal/wind.h"
 #include "../misc/rnd.h"
 #include "../misc/sha1.h"
-#include "../serial/serial_interface.h"
 #include "sx1272.h"
 #include "fanet.h"
 #include "frame/fname.h"

@@ -8,7 +8,7 @@
 #ifndef FANET_REPLAY_H_
 #define FANET_REPLAY_H_
 
-#include "../serial/serial_interface.h"
+#include "../hal/serial/serial_interface.h"
 #include "fframe.h"
 
 class Replay

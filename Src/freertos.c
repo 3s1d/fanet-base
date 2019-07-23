@@ -59,7 +59,7 @@
 #include <stdio.h>
 #include "fanet/fanet.h"
 #include "hal/wind.h"
-#include "serial/serial_interface.h"
+#include "hal/serial/serial_interface.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

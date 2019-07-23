@@ -22,8 +22,8 @@ void wire_task(void const * argument);
 #include "serial.h"
 
 #include "config.h"
-#include "../fanet/fanet.h"
-#include "../fanet/fmac.h"
+#include "../../fanet/fanet.h"
+#include "../../fanet/fmac.h"
 
 
 #define FANET_CMD_START			"#FN"
@@ -74,6 +74,7 @@ void wire_task(void const * argument);
 #define CMD_REMOTEKEY			'K'
 #define CMD_COORDINATE			'C'
 #define CMD_REMOTEREPLAY		'R'
+#define CMD_REMOTEGEOFENCE		'G'
 
 /* Dongle */
 #define CMD_VERSION			'V'
@@ -134,9 +135,9 @@ void wire_task(void const * argument);
  * Print frame:		#FNP toConsole (0..2)
  *
  * Remote Key:		#FRK key
- * Replay Feature:	#FRR num(hex)[,type(hex),windsector(hex, always=FF),forwarding(0..1),payload]		note: only until num gives an reply,
+ * Replay Feature:	#FRF num(hex)[,type(hex),windsector(hex, always=FF),forwarding(0..1),payload]		note: only until num gives an reply,
  * 														note: #FRR num,0 -> clean
- * TODO geofence
+ * GeoFrence		#FRG num(0..3)[,num(hex)[,lat,lon] 'num' times]						note: #FRG num,0 -> clean
  *
  * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload
  *
@@ -170,6 +171,7 @@ private:
 	void fanet_remote_eval(char *str);
 	void fanet_remote_key(char *ch_str);
 	void fanet_remote_replay(char *ch_str);
+	void fanet_remote_geofence(char *ch_str);
 
 	/* Dongle Commands */
 	void dongle_eval(char *str);

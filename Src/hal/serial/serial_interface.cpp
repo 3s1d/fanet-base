@@ -16,12 +16,12 @@
 #include "serial.h"
 #include "usart.h"
 
-#include "../fanet/fanet.h"
-#include "../fanet/frame/fremotecfg.h"
-#include "../fanet/frame/fservice.h"
-#include "../fanet/fmac.h"
-#include "../fanet/sx1272.h"
-#include "../dump_hash.h"			//not contained in repo for obvious reasons!
+#include "../../fanet/fanet.h"
+#include "../../fanet/frame/fremotecfg.h"
+#include "../../fanet/frame/fservice.h"
+#include "../../fanet/fmac.h"
+#include "../../fanet/sx1272.h"
+#include "../../dump_hash.h"			//not contained in repo for obvious reasons!
 #include "serial_interface.h"
 
 
@@ -764,6 +764,11 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 		print_line(FR_REPLYE_WRITEFAILED);
 }
 
+void Serial_Interface::fanet_remote_geofence(char *ch_str)
+{
+	//todo
+}
+
 /* mux string */
 void Serial_Interface::fanet_remote_eval(char *str)
 {
@@ -774,6 +779,9 @@ void Serial_Interface::fanet_remote_eval(char *str)
 		break;
 	case CMD_REMOTEREPLAY:
 		fanet_remote_replay(&str[strlen(REMOTE_CMD_START) + 1]);
+		break;
+	case CMD_REMOTEGEOFENCE:
+		fanet_remote_geofence(&str[strlen(REMOTE_CMD_START) + 1]);
 		break;
 	default:
 		print_line(FN_REPLYE_FN_UNKNOWN_CMD);
