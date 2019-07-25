@@ -155,7 +155,7 @@ public:
 	bool init(Fapp &app);
 
 	void setPower(bool pwr);
-	bool txQueueDepleted(void) { return (txFifo.size() == 0); };
+	bool isTxQueueEmpty(void) { return (txFifo.size() == 0); };
 	bool txQueueHasFreeSlots(void){ return (txFifo.size() < FANETMACFIFO_SIZE); };
 	int transmit(FanetFrame *frm) { return txFifo.add(frm); };
 

@@ -31,6 +31,7 @@ void fanet_task(void const * argument);
 
 #define FANET_NEIGHBOR_SIZE			64
 
+#define FANET_RADIO_UPTIME			750
 
 /* service */
 #define	FANET_TYPE4_TAU_MS			20000
@@ -84,6 +85,7 @@ private:
 	uint32_t nextRfBroadcast = 1000;
 	int16_t nextRfIdx = -1;
 	uint32_t nextServiceBroadcast = 500;
+	uint32_t txQueueLastUsed = 0;
 
 	/* ACK buffer */
 	FanetMacAddr ackAddr;

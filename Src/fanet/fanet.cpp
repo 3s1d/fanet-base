@@ -23,9 +23,6 @@
 #include "frame/fservice.h"
 #include "frame/ftracking.h"
 
-//todo geofence serial
-//todo forwarded against will bit.
-
 osMessageQId fanet_QueueID;
 
 void fanet_rtos(void)
@@ -107,49 +104,13 @@ void Fanet::handle(void)
 {
 	const uint32_t current = osKernelSysTick();
 
-#if 0
-	pwr management
-
-	/* turn on rf chip */
-	if(is_broadcast_ready(fmac.numNeighbors()))
-	{
-		/* enabling radio chip */
-		if(!sx1272_isArmed())
-		{
-			last_framecount = framecount;
-#if defined(DEBUG) || defined(DEBUG_SEMIHOSTING)
-			printf("%u en (%d)\n", (unsigned int)HAL_GetTick(), pwr_suf);
-#endif
-		}
-		sx1272_setArmed(true);
-		last_ready_time = HAL_GetTick();
-	}
-	else if((last_ready_time + WSAPP_RADIO_UPTIME < HAL_GetTick() || !power_sufficiant()) &&
-			fmac.tx_queue_depleted() && framecount != last_framecount)
-	{
-		/* disabling radio chip */
-#if defined(DEBUG) || defined(DEBUG_SEMIHOSTING)
-		if(sx1272_isArmed())
-			printf("%u dis\n", (unsigned int)HAL_GetTick());
-#endif
-		sx1272_setArmed(false);
-	}
-
-	required???
-	/* sleep for 10ms */
-	//note: tick will wake us up every 1ms
-	for(int i=0; i<10; i++)
-		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-
-#endif
-
 	/* time for next replay broadcast? */
 	if(nextRfBroadcast < current)
 	{
 		osMutexWait(replayFeatureMutex, osWaitForever);
 
-		/* just in case, nothing is found delay next eval by 10sec */
-		nextRfBroadcast = current + 10000;
+		/* just in case, nothing is found delay next eval by 15sec */
+		nextRfBroadcast = current + FANET_TYPE6_TAU_MS/2;
 
 		/* find next index */
 		bool found = false;
@@ -190,22 +151,41 @@ void Fanet::handle(void)
 		osMutexRelease(replayFeatureMutex);
 	}
 
-	/* Geo-based forwarding */
-	osMutexWait(geoFenceMutex, osWaitForever);
-
-	bool doGeoForward = false;
-	for(uint16_t i=0; i<NELEM(geoFence) && !doGeoForward; i++)
-		doGeoForward |= geoFence[i].isActive();
-	fmac.promiscuous = doGeoForward || !!frameToConsole;
-	fmac.doForward = !doGeoForward;
-
-	osMutexRelease(geoFenceMutex);
-
 	/* power management */
 	if(power::isSufficiant() == false)
 	{
+		/* not enough power for forwarding of any kind */
 		fmac.promiscuous = false;
 		fmac.doForward = false;
+
+		/* control rf chip */
+		if(fmac.isTxQueueEmpty() == false || nextServiceBroadcast <= current)
+		{
+			/* enabling radio chip */
+			sx1272_setArmed(true);
+			txQueueLastUsed = current;
+		}
+		else if(txQueueLastUsed + FANET_RADIO_UPTIME < current)		//500ms delay to ensure remote config can reach us
+		{
+			/* disabling radio chip */
+			sx1272_setArmed(false);
+		}
+	}
+	else
+	{
+		/* ensure continuous operation */
+		sx1272_setArmed(true);
+
+		/* Geo-based forwarding */
+		osMutexWait(geoFenceMutex, osWaitForever);
+
+		bool doGeoForward = false;
+		for(uint16_t i=0; i<NELEM(geoFence) && !doGeoForward; i++)
+			doGeoForward |= geoFence[i].isActive();
+		fmac.promiscuous = doGeoForward || !!frameToConsole;
+		fmac.doForward = !doGeoForward;
+
+		osMutexRelease(geoFenceMutex);
 	}
 
 	/* remove unavailable nodes */
@@ -439,12 +419,12 @@ void Fanet::handleFrame(FanetFrame *frm)
 	if(frm->ackRequested)
 	{
 		fw->ackRequested = FRM_ACK_SINGLEHOP;
-		fw->numTx = 1;							//note: only 1 retransmission as we are transparent and do not handle ACKs
+		fw->numTx = 1;						//note: only 1 retransmission as we are transparent and do not handle ACKs
 	}
 	fw->geoForward = true;
 	fw->signature = frm->signature;
 	fw->setType(frm->type);
-//	fw->nextTx = current + 3000;						//only for development
+//	fw->nextTx = current + 3000;					//only for development
 	if(frm->payloadLength > 0 && frm->payload != nullptr)
 	{
 		fw->payloadLength = frm->payloadLength;
