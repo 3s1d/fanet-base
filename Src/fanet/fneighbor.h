@@ -51,6 +51,10 @@ public:
 	uint32_t msgReceived = 0;
 	bool msgRead = false;
 
+	/* forwarding */
+	uint32_t lastBrdCastForwarded = 0;
+	uint32_t lastUniCastForwarded = 0;
+
 	FanetNeighbor(const FanetMacAddr &addr);
 
 	~FanetNeighbor()

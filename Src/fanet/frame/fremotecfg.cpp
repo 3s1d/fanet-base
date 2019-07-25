@@ -174,11 +174,10 @@ bool FanetFrameRemoteConfig::geofenceFeature(uint16_t num, uint8_t *payload, uin
 void FanetFrameRemoteConfig::request(uint8_t subtype, FanetMacAddr &addr)
 {
 	/* generate frame */
-	FanetFrame *rfrm = new FanetFrame(fmac.addr);
+	FanetFrame *rfrm = new FanetFrame(addr);
 	if(rfrm == nullptr)
 		return;
 	rfrm->setType(FanetFrame::TYPE_REMOTECONFIG);
-	rfrm->dest = addr;
 	rfrm->forward = false;
 	rfrm->ackRequested = false;
 
@@ -244,7 +243,7 @@ void FanetFrameRemoteConfig::request(uint8_t subtype, FanetMacAddr &addr)
 		rfrm->payload[0] = subtype;
 	}
 
-	/* send if filed */
+	/* send if filled */
 	if(rfrm->payloadLength == 0 || fmac.transmit(rfrm) != 0)
 		delete rfrm;
 }

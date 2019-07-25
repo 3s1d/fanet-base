@@ -25,7 +25,8 @@
 #define MAC_FRM_EXTHEADER_ACK_BIT0		6
 #define MAC_FRM_EXTHEADER_UNICAST_BIT		5
 #define MAC_FRM_EXTHEADER_SIGNATURE_BIT		4
-//bits 3-0 reserved
+#define MAC_FRM_EXTHEADER_GEOFORWARD_BIT	3
+//bits 2-0 reserved
 
 #define FRM_NOACK				0
 #define FRM_ACK_SINGLEHOP			1
@@ -74,6 +75,7 @@ public:
 	//ack and forwards (also geo based) will be handled by mac...
 	int16_t ackRequested = FRM_NOACK;
 	bool forward = false;
+	bool geoForward = false;
 
 	uint32_t signature = 0;
 

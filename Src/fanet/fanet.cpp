@@ -344,7 +344,6 @@ void Fanet::handleAcked(bool ack, FanetMacAddr &addr)
 	ackAddr = addr;							//note: address has to be set as second to prevent race conditions!
 }
 
-
 void Fanet::handleFrame(FanetFrame *frm)
 {
 	if(frameToConsole)
@@ -374,42 +373,109 @@ void Fanet::handleFrame(FanetFrame *frm)
 	}
 
 	/* forward? */
-	if(frm->dest != fmac.addr)			//not addressed to us
+	//note: do not forward already forwarded frames
+	if(frm->dest == fmac.addr || frm->geoForward || sx1272_get_airlimit() > 0.8f || fmac.txQueueHasFreeSlots() == false ||
+			power::isSufficiant() == false)
+		return;
+
+	debug_printf("%02X:%04X->%02X:%04X %X: ", frm->src.manufacturer, frm->src.id, frm->dest.manufacturer, frm->dest.id, frm->type);
+
+	/* get involved positions and time */
+	Coordinate3D srcPos = Coordinate3D();
+	Coordinate3D destPos = Coordinate3D();
+	FanetNeighbor *neighbor = getNeighbor_locked(frm->src);
+	if(neighbor == nullptr)						//should not happen, just in case...
+		return;
+	srcPos = neighbor->pos;
+	const uint32_t lastFw = (frm->dest != FanetMacAddr()) ? neighbor->lastUniCastForwarded : neighbor->lastBrdCastForwarded;
+	releaseNeighbors();
+
+	const uint32_t current = osKernelSysTick();
+	const uint32_t tau = ((numNeighbors()/10)+1)*30000;
+	if(current > lastFw + 4000 && lastFw + tau > current)
 	{
-		/* get involved positions */
-		Coordinate3D srcPos = Coordinate3D();
-		Coordinate3D destPos = Coordinate3D();
-		FanetNeighbor *neighbor = getNeighbor_locked(frm->src);
-		if(neighbor != nullptr)
-		{
-			srcPos = neighbor->pos;
-			releaseNeighbors();
-		}
-		if(frm->dest != FanetMacAddr() && (neighbor = getNeighbor_locked(frm->dest)) != nullptr)
-		{
-			destPos = neighbor->pos;
-			releaseNeighbors();
-		}
+#ifdef DEBUG
+		printf("dropped, too often\n");
+#endif
+		return;
+	}
 
-		/* not directly frame specifically for us. geo-forward? */
-		osMutexWait(geoFenceMutex, osWaitForever);
+	if(frm->dest != FanetMacAddr() && (neighbor = getNeighbor_locked(frm->dest)) != nullptr)
+	{
+		destPos = neighbor->pos;
+		releaseNeighbors();
+	}
 
-		bool doForward = false;
-		for(uint16_t i=0; i<NELEM(geoFence) && doForward == false; i++)
-		{
-			if(geoFence[i].isActive() == false)
-				continue;
+	/* not directly frame specifically for us. geo-forward? */
+	osMutexWait(geoFenceMutex, osWaitForever);
 
-			bool srcInside = geoFence[i].inside(srcPos);
-			bool destInside = destPos != Coordinate3D() && geoFence[i].inside(destPos);
+	bool doForward = false;
+	for(uint16_t i=0; i<NELEM(geoFence) && doForward == false; i++)
+	{
+		if(geoFence[i].isActive() == false)
+			continue;
 
-			doForward |= (srcInside != destInside);
+		bool srcInside = geoFence[i].inside(srcPos);
+		bool destInside = geoFence[i].inside(destPos);
 
-			debug_printf("#%d: src%d dest%d -> %d\n", i, srcInside, destInside, doForward);
-//todo when sent last? enough bandwidth left?
-		}
+		doForward |= (srcInside != destInside);
+	}
 
-		osMutexRelease(geoFenceMutex);
+	osMutexRelease(geoFenceMutex);
+
+	if(doForward == false)
+	{
+#ifdef DEBUG
+		printf("dropped, not within fence\n");
+#endif
+		return;
+	}
+
+	/* prepare for retransmission */
+	FanetFrame *fw = new FanetFrame(frm->dest);
+	if(fw == nullptr)
+		return;
+	fw->src = frm->src;
+	if(frm->ackRequested)
+	{
+		fw->ackRequested = FRM_ACK_SINGLEHOP;
+		fw->numTx = 1;							//note: only 1 retransmission as we are transparent and do not handle ACKs
+	}
+	fw->geoForward = true;
+	fw->signature = frm->signature;
+	fw->setType(frm->type);
+//	fw->nextTx = current + 3000;						//only for development
+	if(frm->payloadLength > 0 && frm->payload != nullptr)
+	{
+		fw->payloadLength = frm->payloadLength;
+		fw->payload = new uint8_t[fw->payloadLength];
+		memcpy(fw->payload, frm->payload, fw->payloadLength * sizeof(uint8_t));
+	}
+
+	/* send if filled */
+	if(fmac.transmit(fw) != 0)
+	{
+#ifdef DEBUG
+		printf("problem while sending\n");
+#endif
+		delete fw;
+	}
+#ifdef DEBUG
+	else
+	{
+		printf("forwarded\n");
+	}
+#endif
+
+	/* update tx time at src */
+	neighbor = getNeighbor_locked(frm->src);
+	if(neighbor != nullptr)
+	{
+		if(frm->dest != FanetMacAddr())
+			neighbor->lastUniCastForwarded = current;
+		else
+			neighbor->lastBrdCastForwarded = current;
+		releaseNeighbors();
 	}
 }
 

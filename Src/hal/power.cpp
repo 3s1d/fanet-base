@@ -15,6 +15,10 @@
 /* Cap > 2.225V */
 bool power::isSufficiant(void)
 {
+#ifdef DEBUG
+	return true;
+#endif
+
 	static uint32_t nextPwr = 0;
 	static bool pwrSuf = false;
 	uint32_t current = osKernelSysTick();

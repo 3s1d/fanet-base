@@ -312,7 +312,7 @@ void FanetMac::handleTx()
 	}
 
 #if MAC_debug_mode > 1
-	debug_printf("tx%02X\n", frm->type);
+	debug_printf("TX %02X:%04X->%02X:%04X %X\n", frm->src.manufacturer, frm->src.id, frm->dest.manufacturer, frm->dest.id, frm->type);
 #endif
 
 #if MAC_debug_mode >= 4
@@ -335,7 +335,6 @@ void FanetMac::handleTx()
 	if (txRet == TX_OK)
 	{
 		/* transmission successful */
-
 		if (appTx)
 		{
 			/* app tx */

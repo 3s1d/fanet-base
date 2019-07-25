@@ -128,7 +128,7 @@ int16_t FanetFrame::serialize(uint8_t*& buffer)
 	int blength = MAC_FRM_MIN_HEADER_LENGTH + payloadLength;
 
 	/* extended header? */
-	if(ackRequested || dest.id != 0 || dest.manufacturer != 0 || signature != 0)
+	if(ackRequested || dest.id != 0 || dest.manufacturer != 0 || signature != 0 || geoForward)
 		blength++;
 
 	/* none broadcast frame */
@@ -148,20 +148,23 @@ int16_t FanetFrame::serialize(uint8_t*& buffer)
 	int idx = 0;
 
 	/* header */
-	buffer[idx++] = !!(ackRequested || dest.id != 0 || dest.manufacturer != 0 || signature != 0)<<MAC_FRM_HEADER_EXTHEADER_BIT |
+	if(geoForward)
+		forward = false;
+	buffer[idx++] = !!(ackRequested || dest.id != 0 || dest.manufacturer != 0 || signature != 0 || geoForward)<<MAC_FRM_HEADER_EXTHEADER_BIT |
 			!!forward<<MAC_FRM_HEADER_FORWARD_BIT | (type & MAC_FRM_HEADER_TYPE_MASK);
 	buffer[idx++] = src.manufacturer & 0x000000FF;
 	buffer[idx++] = src.id & 0x000000FF;
 	buffer[idx++] = (src.id>>8) & 0x000000FF;
 
 	/* extended header */
-	if(buffer[0] & 1<<7)
+	if(buffer[0] & 1<<MAC_FRM_HEADER_EXTHEADER_BIT)
 		buffer[idx++] = (ackRequested & 3)<<MAC_FRM_EXTHEADER_ACK_BIT0 |
 				!!(dest.id != 0 || dest.manufacturer != 0)<<MAC_FRM_EXTHEADER_UNICAST_BIT |
-				!!signature<<MAC_FRM_EXTHEADER_SIGNATURE_BIT;
+				!!signature<<MAC_FRM_EXTHEADER_SIGNATURE_BIT |
+				!!geoForward<<MAC_FRM_EXTHEADER_GEOFORWARD_BIT;
 
 	/* extheader and unicast -> add destination addr */
-	if((buffer[0] & 1<<7) && (buffer[4] & 1<<5))
+	if((buffer[0] & 1<<MAC_FRM_HEADER_EXTHEADER_BIT) && (buffer[4] & 1<<MAC_FRM_EXTHEADER_UNICAST_BIT))
 	{
 		buffer[idx++] = dest.manufacturer & 0x000000FF;
 		buffer[idx++] = dest.id & 0x000000FF;
@@ -169,7 +172,7 @@ int16_t FanetFrame::serialize(uint8_t*& buffer)
 	}
 
 	/* extheader and signature -> add signature */
-	if((buffer[0] & 1<<7) && (buffer[4] & 1<<4))
+	if((buffer[0] & 1<<MAC_FRM_HEADER_EXTHEADER_BIT) && (buffer[4] & 1<<MAC_FRM_EXTHEADER_SIGNATURE_BIT))
 	{
 		buffer[idx++] = signature & 0x000000FF;
 		buffer[idx++] = (signature>>8) & 0x000000FF;
@@ -256,6 +259,9 @@ FanetFrame::FanetFrame(int16_t length, uint8_t *data) : type(_type)
 			signature = data[payload_start] | (data[payload_start+1]<<8) | (data[payload_start+2]<<16) | (data[payload_start+3]<<24);
 			payload_start += MAC_FRM_SIGNATURE_LENGTH;
 		}
+
+		/* geoforward */
+		geoForward = !!(data[4] & (1<<MAC_FRM_EXTHEADER_GEOFORWARD_BIT));
 	}
 
 	/* payload */

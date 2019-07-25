@@ -48,6 +48,9 @@ bool GeoFence::add(uint8_t idx, Coordinate2D &pos)
 
 bool GeoFence::inside(Coordinate3D &poi)
 {
+	if(poi == Coordinate3D())
+		return false;
+
 	return verticalDistance(poi) <= 0.0f && horizontalDistance(poi) <= 0.0f;
 }
 
@@ -110,7 +113,7 @@ float GeoFence::horizontalDistance(const Coordinate3D &poi)
 	if (fabsf(windingCount) > M_PI_f && minDst < 1.0f)
 		minDst = -minDst;
 
-	debug_printf("hor %.f\n", minDst* WGS84_A_RADIUS);
+	//debug_printf("hor %.f\n", minDst* WGS84_A_RADIUS);
 	return minDst * WGS84_A_RADIUS;
 }
 
@@ -122,7 +125,7 @@ float GeoFence::verticalDistance(const Coordinate3D &poi)
 	/* ceiling */
 	float aboveCeiling = poi.altitude - ceiling;
 
-	debug_printf("vert %.f\n", std::max(belowFloor, aboveCeiling));
+//	debug_printf("vert %.f\n", std::max(belowFloor, aboveCeiling));
 	return std::max(belowFloor, aboveCeiling);
 }
 
