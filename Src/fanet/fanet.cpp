@@ -165,7 +165,7 @@ void Fanet::handle(void)
 			sx1272_setArmed(true);
 			txQueueLastUsed = current;
 		}
-		else if(txQueueLastUsed + FANET_RADIO_UPTIME < current)		//500ms delay to ensure remote config can reach us
+		else if(txQueueLastUsed + FANET_RADIO_UPTIME < current)		//750ms delay to ensure remote config can reach us
 		{
 			/* disabling radio chip */
 			sx1272_setArmed(false);
@@ -178,14 +178,13 @@ void Fanet::handle(void)
 
 		/* Geo-based forwarding */
 		osMutexWait(geoFenceMutex, osWaitForever);
-
 		bool doGeoForward = false;
 		for(uint16_t i=0; i<NELEM(geoFence) && !doGeoForward; i++)
 			doGeoForward |= geoFence[i].isActive();
-		fmac.promiscuous = doGeoForward || !!frameToConsole;
-		fmac.doForward = !doGeoForward;
-
 		osMutexRelease(geoFenceMutex);
+		fmac.promiscuous = doGeoForward || !!frameToConsole;
+		fmac.doForward = !doGeoForward || (numNeighbors() < MAC_MAXNEIGHBORS_FOR_2HOP);
+
 	}
 
 	/* remove unavailable nodes */
@@ -354,7 +353,7 @@ void Fanet::handleFrame(FanetFrame *frm)
 
 	/* forward? */
 	//note: do not forward already forwarded frames
-	if(frm->dest == fmac.addr || frm->geoForward || sx1272_get_airlimit() > 0.8f || fmac.txQueueHasFreeSlots() == false ||
+	if(fmac.forwardAble(frm) || frm->dest == fmac.addr || frm->geoForward || sx1272_get_airlimit() > 0.8f || fmac.txQueueHasFreeSlots() == false ||
 			power::isSufficiant() == false)
 		return;
 

@@ -170,6 +170,18 @@ void FanetMac::ack(FanetFrame* frm)
 		delete ack;
 }
 
+bool FanetMac::forwardAble(FanetFrame *frm)
+{
+	if(frm == nullptr)
+		return false;
+
+	if(doForward == false || frm->forward == false)
+		return false;
+
+	return (txFifo.size() < FANETMACFIFO_SIZE - 3 && frm->rssi <= MAC_FORWARD_MAX_RSSI_DBM
+			&& (frm->dest == FanetMacAddr() || (myApp!=nullptr&& myApp->isNeighbor(frm->dest))) && sx1272_get_airlimit() < 0.5f);
+}
+
 /*
  * Processes stuff from rxFifo
  */
@@ -218,8 +230,7 @@ void FanetMac::handleRx()
 	}
 
 	/* Forward frame */
-	if (doForward && frm->forward && txFifo.size() < FANETMACFIFO_SIZE - 3 && frm->rssi <= MAC_FORWARD_MAX_RSSI_DBM
-			&& (frm->dest == FanetMacAddr() || (myApp!=nullptr&& myApp->isNeighbor(frm->dest))) && sx1272_get_airlimit() < 0.5f)
+	if(forwardAble(frm))
 	{
 #if defined(DEBUG) && MAC_debug_mode > 1
 		debug_printf("forward frame\n");

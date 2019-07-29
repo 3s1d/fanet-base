@@ -158,6 +158,7 @@ public:
 	bool isTxQueueEmpty(void) { return (txFifo.size() == 0); };
 	bool txQueueHasFreeSlots(void){ return (txFifo.size() < FANETMACFIFO_SIZE); };
 	int transmit(FanetFrame *frm) { return txFifo.add(frm); };
+	bool forwardAble(FanetFrame *frm);
 
 	/* Addr */
 	bool writeAddr(FanetMacAddr addr);
