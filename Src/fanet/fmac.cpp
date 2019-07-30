@@ -240,6 +240,7 @@ void FanetMac::handleRx()
 
 		/* generate new tx time */
 		frm->nextTx = osKernelSysTick() + rnd::get(MAC_FORWARD_DELAY_MIN, MAC_FORWARD_DELAY_MAX);
+		frm->numTx = !!frm->ackRequested;
 
 		/* add to list */
 		txFifo.add(frm);
@@ -281,7 +282,7 @@ void FanetMac::handleTx()
 #if MAC_debug_mode > 0
 			debug_printf("Frm%02X NACK!\n", frm->type);
 #endif
-			if (myApp != NULL)
+			if (myApp != NULL && frm->src == addr)
 				myApp->handleAcked(false, frm->dest);
 
 			txFifo.removeDelete_nolock(frm);
@@ -355,7 +356,7 @@ void FanetMac::handleTx()
 		else
 		{
 			/* fifo tx */
-			if (!frm->ackRequested)
+			if (!frm->ackRequested || frm->src != addr)
 			{
 				/* remove frame from FIFO only if no ACK is expected*/
 				txFifo.removeDelete_nolock(frm);
