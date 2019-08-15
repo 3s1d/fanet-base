@@ -1,5 +1,6 @@
 
 #include <stdbool.h>
+#include <math.h>
 
 #include "cmsis_os.h"
 
@@ -890,7 +891,7 @@ int sx1272_sendFrame_FSK(sx_fsk_conf_t *conf, uint8_t *data, int num_data)
 	sx_writeRegister(REG_BITRATE_LSB, 0x40);
 
 	/* freq */
-	int frf = round(((double)conf->frep) * 1638.423);		//don't use float here
+	int frf = round(((double)conf->frep) * 1638.4116);			//correct value: 1638.4 (don't use float)
 	sx_writeRegister(REG_FRF_MSB, (frf>>16) & 0xFF);
 	sx_writeRegister(REG_FRF_MID, (frf>>8) & 0xFF);
 	sx_writeRegister(REG_FRF_LSB, frf & 0xFF);

@@ -41,7 +41,7 @@ bool FanetMac::init(Fapp &app)
 	/* region specific. default is EU */
 	sx_region_t region;
 	region.channel = CH_868_200;
-	region.dBm = 12;			//+2dB antenna gain (skytraxx/lynx) -> max allowed output (14dBm)
+	region.dBm = 10;			//+4dB antenna gain (skytraxx/lynx) -> max allowed output (14dBm)
 	sx1272_setRegion(region);
 
 	/* enter sleep mode */
@@ -128,6 +128,13 @@ void FanetMac::receivedBuffer2Frame(int length)
 	/* build frame from stream */
 	FanetFrame *frm = new FanetFrame(num_received, rxFrame);
 	frm->rssi = rssi;
+
+	/* own frame? */
+	if(frm->src == addr)
+	{
+		delete frm;
+		return;
+	}
 
 	/* add to fifo */
 	if (rxFifo.add(frm) < 0)

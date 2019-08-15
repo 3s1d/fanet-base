@@ -11,7 +11,7 @@ extern "C" {
 #include "stm32l4xx.h"
 #include "stm32l4xx_hal_spi.h"
 
-#define SX1272_DO_FSK
+//#define SX1272_DO_FSK
 #define SX1272_AIRTIME_AVG_INTERVALL			5000
 
 #define SX1272_debug_mode 				0

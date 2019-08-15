@@ -13,9 +13,9 @@
 #include "common.h"
 #include "constrain.h"
 #include "jump.h"
-#include "serial.h"
 #include "usart.h"
 
+#include "serial.h"
 #include "../../fanet/fanet.h"
 #include "../../fanet/frame/fremotecfg.h"
 #include "../../fanet/frame/fservice.h"
