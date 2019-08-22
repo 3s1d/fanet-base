@@ -103,6 +103,7 @@ bool FanetMac::eraseAddr(void)
 
 	uint32_t sectorError = 0;
 	HAL_FLASH_Unlock();
+	__HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
 	HAL_StatusTypeDef ret = HAL_FLASHEx_Erase(&eraseInit, &sectorError);
 	HAL_FLASH_Lock();
 
