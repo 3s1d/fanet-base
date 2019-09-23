@@ -162,9 +162,9 @@ bool FanetFrameRemoteConfig::geofenceFeature(uint16_t num, uint8_t *payload, uin
 	/* other vertices */
 	for(uint16_t i=idx; i<len-3; i+=4)
 	{
-		Coordinate2D v = Coordinate2D(FanetFrame::payload2coord_compressed((uint16_t *)&payload[i], pos.latitude),
+		pos = Coordinate2D(FanetFrame::payload2coord_compressed((uint16_t *)&payload[i], pos.latitude),
 				FanetFrame::payload2coord_compressed((uint16_t *)&payload[i+2], pos.longitude));
-		gf.add(numVert++, v);
+		gf.add(numVert++, pos);
 	}
 	fanet.releaseGeoFence();
 

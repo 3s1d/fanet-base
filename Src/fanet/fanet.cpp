@@ -60,7 +60,6 @@ void fanet_task(void const * argument)
 
 	/* turn on FANET */
 	fmac.setPower(true);
-//todo tx power
 
 	/* fanet loop */
 	while(1)
