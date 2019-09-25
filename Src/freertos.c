@@ -60,6 +60,7 @@
 #include "fanet/fanet.h"
 #include "hal/wind.h"
 #include "hal/serial/serial_interface.h"
+#include "hal/sht2x/sht2x.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -79,7 +80,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+osThreadId sht20TaskHandle;
 /* USER CODE END Variables */
 osThreadId fanetTaskHandle;
 osThreadId wireTaskHandle;
@@ -87,7 +88,7 @@ osThreadId windTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-   
+extern void sht2x_task(void const * argument);
 /* USER CODE END FunctionPrototypes */
 
 void fanet_task(void const * argument);
@@ -152,7 +153,10 @@ void MX_FREERTOS_Init(void) {
   windTaskHandle = osThreadCreate(osThread(windTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
+#ifdef SHTTASK
+  osThreadDef(sht2xTask, sht2x_task, osPriorityLow, 0, 256);
+  sht20TaskHandle = osThreadCreate(osThread(sht2xTask), NULL);
+#endif
   /* USER CODE END RTOS_THREADS */
 
 }

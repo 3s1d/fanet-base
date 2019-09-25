@@ -32,7 +32,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "config.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -83,6 +83,30 @@ void Error_Handler(void);
 #define ISMISOL_Pin GPIO_PIN_7
 #define ISMISOL_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
+
+#ifdef SHT_DEVEL
+	#undef WIND_PWR_Pin
+	#define WIND_PWR_Pin 0
+	#undef ISMISOL_Pin
+	#define ISMISOL_Pin 0
+
+	#define SHTSCL_Pin GPIO_PIN_15
+	#define SHTSCL_GPIO_Port GPIOA
+	#define SHTSDA_Pin GPIO_PIN_7
+	#define SHTSDA_GPIO_Port GPIOB
+	#define SHTTASK
+#elif !defined(DEBUG)
+	#define SHTSCL_Pin GPIO_PIN_13
+	#define SHTSCL_GPIO_Port GPIOA
+	#define SHTSDA_Pin GPIO_PIN_14
+	#define SHTSDA_GPIO_Port GPIOA
+	#define SHTTASK
+#else
+	#define SHTSCL_Pin 0
+	#define SHTSCL_GPIO_Port GPIOH
+	#define SHTSDA_Pin 0
+	#define SHTSDA_GPIO_Port GPIOH
+#endif
 
 /* USER CODE END Private defines */
 

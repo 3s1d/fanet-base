@@ -5,8 +5,6 @@
  *      Author: sid
  */
 
-#include "../hal/wind.h"
-
 #include <stdio.h>
 #include <float.h>
 #include <math.h>
@@ -14,6 +12,7 @@
 #include "cmsis_os.h"
 #include "adc.h"
 
+#include "../hal/wind.h"
 #include "common.h"
 
 uint16_t windTicker = 0;		//16bit is for sure atomic
