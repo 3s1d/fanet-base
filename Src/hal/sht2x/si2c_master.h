@@ -23,8 +23,8 @@ typedef struct
 } si2c_t;
 
 si2c_t si2cInit(GPIO_TypeDef* sdaPort, uint16_t sdaPin, GPIO_TypeDef* sclPort, uint16_t sclPin);
-bool si2cWrite(si2c_t *si2c, uint8_t device, uint8_t addr, uint8_t data);
-bool si2cRead(si2c_t *si2c, uint8_t device, uint8_t addr, uint8_t *data);
+bool si2cWrite(si2c_t *si2c, uint8_t device, uint8_t addr, uint8_t *data, uint16_t len);
+bool si2cRead(si2c_t *si2c, uint8_t device, uint8_t addr, uint8_t addrLen, uint8_t *data, uint16_t len);
 
 #ifdef __cplusplus
 }

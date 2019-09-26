@@ -6,7 +6,6 @@
  */
 
 #include <stdbool.h>
-#include <stdio.h>		//tbr
 
 #include "cmsis_os.h"
 
@@ -17,36 +16,21 @@
 
 //note: private helper do not feature a null ptr check
 //note2: GPIO_PIN_SET -> hi-z, GPIO_PIN_RESET -> low
+//note3: does not yet support busy port indication by slaves (SCL kept low)
 
-void SDA_IN(void)
+void si2cDelay_half(void)
 {
-//	GPIO_InitTypeDef GPIO_InitStruct;
-//	GPIO_InitStruct.GPIO_Mode = GPIO_Mode_IPU;    //
-//	GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
-//	GPIO_InitStruct.GPIO_Pin = PIN_SDA;
-//	GPIO_Init(I2C_PORT, &GPIO_InitStruct);
-}
-
-void SDA_OUT(void)
-{
-//	GPIO_InitTypeDef GPIO_InitStruct;
-//	GPIO_InitStruct.GPIO_Mode = GPIO_Mode_Out_PP;
-//	GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
-//	GPIO_InitStruct.GPIO_Pin = PIN_SDA;
-//	GPIO_Init(I2C_PORT, &GPIO_InitStruct);
+	asm("nop");
+	asm("nop");
+	asm("nop");
+	asm("nop");
 }
 
 void si2cDelay(void)
 {
-	osDelay(1);
-	//todo 2x half
+	si2cDelay_half();
+	si2cDelay_half();
 }
-
-void si2cDelay_half(void)
-{
-	osDelay(1);
-}
-
 
 si2c_t si2cInit(GPIO_TypeDef* sdaPort, uint16_t sdaPin, GPIO_TypeDef* sclPort, uint16_t sclPin)
 {
@@ -70,7 +54,6 @@ si2c_t si2cInit(GPIO_TypeDef* sdaPort, uint16_t sdaPin, GPIO_TypeDef* sclPort, u
 
 void si2cStart(si2c_t *si2c)
 {
-	SDA_OUT();
 	HAL_GPIO_WritePin(si2c->sdaPort, si2c->sdaPin, GPIO_PIN_SET);
 	si2cDelay();
 	HAL_GPIO_WritePin(si2c->sclPort, si2c->sclPin, GPIO_PIN_SET);
@@ -83,7 +66,6 @@ void si2cStart(si2c_t *si2c)
 
 void si2cStop(si2c_t *si2c)
 {
-	SDA_OUT();
 	HAL_GPIO_WritePin(si2c->sdaPort, si2c->sdaPin, GPIO_PIN_RESET);
 	si2cDelay();
 	HAL_GPIO_WritePin(si2c->sclPort, si2c->sclPin, GPIO_PIN_SET);
@@ -94,7 +76,6 @@ void si2cStop(si2c_t *si2c)
 
 bool si2cWaitAck(si2c_t *si2c)
 {
-	SDA_IN();
 	HAL_GPIO_WritePin(si2c->sdaPort, si2c->sdaPin, GPIO_PIN_SET);
 	si2cDelay_half();
 	HAL_GPIO_WritePin(si2c->sclPort, si2c->sclPin, GPIO_PIN_SET);
@@ -102,7 +83,7 @@ bool si2cWaitAck(si2c_t *si2c)
 	uint16_t loop = 0;
 	while(HAL_GPIO_ReadPin(si2c->sdaPort, si2c->sdaPin) == GPIO_PIN_SET)
 	{
-		if(++loop > 1000)									//todo test how small we can go....
+		if(++loop > 254)
 		{
 			si2cStop(si2c);
 			return false;
@@ -114,48 +95,35 @@ bool si2cWaitAck(si2c_t *si2c)
 	return true;
 }
 
-void si2cAck(si2c_t *si2c)
-{
-	SDA_OUT();
-	HAL_GPIO_WritePin(si2c->sdaPort, si2c->sdaPin, GPIO_PIN_RESET);
-	si2cDelay_half();
-	HAL_GPIO_WritePin(si2c->sclPort, si2c->sclPin, GPIO_PIN_SET);
-	si2cDelay_half();
-	HAL_GPIO_WritePin(si2c->sclPort, si2c->sclPin, GPIO_PIN_RESET);
-}
-
-void si2cNack(si2c_t *si2c)
+void si2cAck(si2c_t *si2c, bool ack)
 {
 	HAL_GPIO_WritePin(si2c->sclPort, si2c->sclPin, GPIO_PIN_RESET);
-	SDA_OUT();
-	HAL_GPIO_WritePin(si2c->sdaPort, si2c->sdaPin, GPIO_PIN_SET);
+	si2cDelay_half();
+	HAL_GPIO_WritePin(si2c->sdaPort, si2c->sdaPin, ack ? GPIO_PIN_RESET : GPIO_PIN_SET);
 	si2cDelay_half();
 	HAL_GPIO_WritePin(si2c->sclPort, si2c->sclPin, GPIO_PIN_SET);
-	si2cDelay_half();
+	si2cDelay();
 	HAL_GPIO_WritePin(si2c->sclPort, si2c->sclPin, GPIO_PIN_RESET);
 }
 
 void si2cTxByte(si2c_t *si2c, uint8_t txd)
 {
-	SDA_OUT();
 	HAL_GPIO_WritePin(si2c->sclPort, si2c->sclPin, GPIO_PIN_RESET);
 	for (uint8_t bit=0; bit<8; bit++)
 	{
 		HAL_GPIO_WritePin(si2c->sdaPort, si2c->sdaPin, ((txd & 0x80) == 0x80) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
 		txd <<= 1;
+
 		si2cDelay_half();
 		HAL_GPIO_WritePin(si2c->sclPort, si2c->sclPin, GPIO_PIN_SET);
 		si2cDelay_half();
 		HAL_GPIO_WritePin(si2c->sclPort, si2c->sclPin, GPIO_PIN_RESET);
-		si2cDelay_half();
 	}
 }
 
 uint8_t si2cRxByte(si2c_t *si2c, bool ack)
 {
 	uint8_t rxd = 0;
-	SDA_IN();
 	HAL_GPIO_WritePin(si2c->sdaPort, si2c->sdaPin, GPIO_PIN_SET);
 	for (uint8_t i=0; i<8; i++)
 	{
@@ -165,16 +133,13 @@ uint8_t si2cRxByte(si2c_t *si2c, bool ack)
 		si2cDelay_half();
 		rxd <<= 1;
 		rxd |= HAL_GPIO_ReadPin(si2c->sdaPort, si2c->sdaPin);
-		si2cDelay_half();
 	}
-	if (ack)
-		si2cAck(si2c);
-	else
-		si2cNack(si2c);
+
+	si2cAck(si2c, ack);
 	return rxd;
 }
 
-bool si2cWrite(si2c_t *si2c, uint8_t device, uint8_t addr, uint8_t data)
+bool si2cWrite(si2c_t *si2c, uint8_t device, uint8_t addr, uint8_t *data, uint16_t len)
 {
 	if(si2c == NULL)
 		return false;
@@ -183,59 +148,67 @@ bool si2cWrite(si2c_t *si2c, uint8_t device, uint8_t addr, uint8_t data)
 
 	si2cTxByte(si2c, device);
 	if(si2cWaitAck(si2c) == false)
-{
-printf("dev nack\n");
+	{
+		si2cStop(si2c);
 		return false;
-}
+	}
 
 	si2cTxByte(si2c, addr);
 	if(si2cWaitAck(si2c) == false)
-{
-printf("addr nack\n");
+	{
+		si2cStop(si2c);
 		return false;
-}
+	}
 
-	si2cTxByte(si2c, data);
-	if(si2cWaitAck(si2c) == false)
-{
-printf("data nack\n");					//this might be ok???
-		return false;
-}
+
+	for(uint16_t i=0; i<len && data != NULL; i++)
+	{
+		si2cTxByte(si2c, data[i]);
+		if(si2cWaitAck(si2c) == false)
+		{
+			si2cStop(si2c);
+			return false;
+		}
+	}
 
 	si2cStop(si2c);
 	return true;
 }
 
-bool si2cRead(si2c_t *si2c, uint8_t device, uint8_t addr, uint8_t *data)
+//note: currently only supports 0 and 1 byte address length
+bool si2cRead(si2c_t *si2c, uint8_t device, uint8_t addr, uint8_t addrLen,  uint8_t *data, uint16_t len)
 {
 	if(si2c == NULL || data == NULL)
 		return false;
 
-	si2cStart(si2c);
+	if(addrLen > 0)
+	{
+		si2cStart(si2c);
 
-	si2cTxByte(si2c, device);
-	if(si2cWaitAck(si2c) == false)
-{
-printf("dev nack\n");
-		return false;
-}
+		si2cTxByte(si2c, device);
+		if(si2cWaitAck(si2c) == false)
+		{
+			si2cStop(si2c);
+			return false;
+		}
 
-	si2cTxByte(si2c, addr);
-	if(si2cWaitAck(si2c) == false)
-{
-printf("addr nack\n");
-		return false;
-}
+		si2cTxByte(si2c, addr);
+		if(si2cWaitAck(si2c) == false)
+		{
+			si2cStop(si2c);
+			return false;
+		}
+	}
 
 	si2cStart(si2c);
 	si2cTxByte(si2c, device | 1);					//read bit
 	if(si2cWaitAck(si2c) == false)
-{
-printf("dev nack\n");
+	{
+		si2cStop(si2c);
 		return false;
-}
-
-	*data = si2cRxByte(si2c, false);					//no ACK
+	}
+	for(uint16_t i=0; i<len; i++)
+		data[i] = si2cRxByte(si2c, i != len-1);
 
 	si2cStop(si2c);
 	return true;

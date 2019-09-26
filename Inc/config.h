@@ -8,7 +8,7 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-#define SHT_DEVEL
+//#define SHT_DEVEL
 
 
 #endif /* CONFIG_H_ */

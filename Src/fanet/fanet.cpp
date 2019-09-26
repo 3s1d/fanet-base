@@ -13,6 +13,7 @@
 
 #include "../hal/power.h"
 #include "../hal/serial/serial_interface.h"
+#include "../hal/sht2x/sht2x.h"
 #include "../hal/wind.h"
 #include "../misc/rnd.h"
 #include "../misc/sha1.h"
@@ -296,8 +297,20 @@ FanetFrame *Fanet::broadcastIntended(void)
 
 	FanetFrameService *sfrm = new FanetFrameService(false, strlen(fanet.key)>0);		//no Inet but remoteCfg if key present
 	debug_printf("Service Tx\n");
+
+	/* wind */
 	if(wind.sensorPresent)
 		sfrm->setWind(wind.getDir_2min_avg(), wind.getSpeed_2min_avg(), wind.getSpeed_max());
+
+	/* air */
+	float temp, rh;
+	sht2x.get(&temp, &rh);
+	if(std::isnan(temp) == false)
+		sfrm->setTemperature(temp);
+	if(std::isnan(rh) == false)
+		sfrm->setHumidity(rh);
+
+	/* power */
 	sfrm->setSoc(power::isSufficiant() ? 100.0f : 30.0f);
 
 	/* in case of a busy channel, ensure that frames from the tx fifo gets also a change */
