@@ -24,6 +24,7 @@ void si2cDelay_half(void)
 	asm("nop");
 	asm("nop");
 	asm("nop");
+	asm("nop");
 }
 
 void si2cDelay(void)

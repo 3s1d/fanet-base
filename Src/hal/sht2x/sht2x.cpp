@@ -140,7 +140,7 @@ bool Sht2x::measureRH(void)
 
 	const float rh = calcRH(rawRH);
 	osMutexWait(sensMutex, osWaitForever);
-	relHumidity = rh;
+	relHumidity = rh>100.0f ? 100.0f : rh;
 	osMutexRelease(sensMutex);
 
 	return true;
