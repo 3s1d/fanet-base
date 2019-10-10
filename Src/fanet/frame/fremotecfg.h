@@ -14,7 +14,7 @@
 #define FANET_RC_GEOFENCE_LOWER			4
 #define FANET_RC_GEOFENCE_UPPER			8
 #define FANET_RC_REPLAY_LOWER			9
-#define FANET_RC_REPLAY_UPPER			21
+#define FANET_RC_REPLAY_UPPER			33
 
 #include "../fframe.h"
 

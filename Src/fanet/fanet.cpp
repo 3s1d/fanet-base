@@ -605,8 +605,12 @@ void Fanet::loadPosition(void)
 	debug_printf("Loc %.4f,%.4f,%.fm,%.fdeg\n", rad2deg(position.latitude), rad2deg(position.longitude), position.altitude, heading);
 }
 
-bool Fanet::writeReplayFeatures(void)
+bool Fanet::writeReplayFeatures(uint16_t num)
 {
+	/* volatile feature -> no need to rewrite */
+	if(num >= numReplayFeatureNoneVolatile)
+		return true;
+
 	/* determine page */
 	FLASH_EraseInitTypeDef eraseInit = {0};
 	eraseInit.TypeErase = FLASH_TYPEERASE_PAGES;
@@ -628,8 +632,8 @@ bool Fanet::writeReplayFeatures(void)
 	/* write */
 	bool error = false;
 	osMutexWait(replayFeatureMutex, osWaitForever);
-	for(uint16_t i=0; i<NELEM(replayFeature); i++)
-		error |= !replayFeature[i].write(FANET_RPADDR_BASE + i*FLASH_PAGESIZE/NELEM(replayFeature)/8*8);
+	for(uint16_t i=0; i<numReplayFeatureNoneVolatile; i++)
+		error |= !replayFeature[i].write(FANET_RPADDR_BASE + i*FLASH_PAGESIZE/numReplayFeatureNoneVolatile/8*8);
 	osMutexRelease(replayFeatureMutex);
 
 	HAL_FLASH_Lock();
@@ -639,8 +643,8 @@ bool Fanet::writeReplayFeatures(void)
 void Fanet::loadReplayFeatures(void)
 {
 	osMutexWait(replayFeatureMutex, osWaitForever);
-	for(uint16_t i=0; i<NELEM(replayFeature); i++)
-		replayFeature[i].load(FANET_RPADDR_BASE + i*FLASH_PAGESIZE/NELEM(replayFeature)/8*8);
+	for(uint16_t i=0; i<numReplayFeatureNoneVolatile; i++)
+		replayFeature[i].load(FANET_RPADDR_BASE + i*FLASH_PAGESIZE/numReplayFeatureNoneVolatile/8*8);
 	osMutexRelease(replayFeatureMutex);
 }
 
@@ -721,9 +725,14 @@ Replay &Fanet::getReplayFeature_locked(uint16_t num)
 	return replayFeature[num % NELEM(replayFeature)];
 }
 
-void Fanet::releaseReplayFeature(void)
+bool Fanet::releaseReplayFeature(int16_t changedNum)
 {
 	osMutexRelease(replayFeatureMutex);
+
+	if(changedNum < 0 || changedNum >= static_cast<int16_t>(NELEM(replayFeature)))
+		return true;
+
+	return writeReplayFeatures(changedNum);
 }
 
 Fanet fanet = Fanet();

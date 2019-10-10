@@ -77,9 +77,11 @@ private:
 	GeoFence geoFence[4];
 
 	/* replay features */
+	static const uint16_t numReplayFeatureNoneVolatile = 12;
+	static const uint16_t numReplayFeatureVolatile = 12;
 	osMutexDef(replayFeatureMutex);
 	osMutexId replayFeatureMutex = osMutexCreate(osMutex(replayFeatureMutex));
-	Replay replayFeature[12];
+	Replay replayFeature[numReplayFeatureNoneVolatile+numReplayFeatureVolatile];
 
 	/* broadcasts */
 	uint32_t nextRfBroadcast = 1000;
@@ -105,6 +107,7 @@ private:
 	void loadPosition(void);
 	void loadReplayFeatures(void);
 	void loadGeoFences(void);
+	bool writeReplayFeatures(uint16_t num);
 
 public:
 	const char *key = _key;
@@ -143,7 +146,7 @@ public:
 	/* replay feature */
 	uint16_t numReplayFeatures(void) { return NELEM(replayFeature); }
 	Replay &getReplayFeature_locked(uint16_t num);
-	void releaseReplayFeature(void);
+	bool releaseReplayFeature(int16_t changedNum = -1);
 
 	/* manual / serial */
 	void manualServiceSent(void) { noAutoServiceBefore = osKernelSysTick() + 180000; }			//disable for 3min
@@ -156,7 +159,6 @@ public:
 	/* remote config */
 	bool writeKey(char *newKey);
 	bool writePosition(Coordinate3D newPos, float newHeading);
-	bool writeReplayFeatures(void);
 	bool writeGeoFences(void);
 };
 

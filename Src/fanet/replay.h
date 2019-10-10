@@ -26,7 +26,7 @@ private:
 
 public:
 	Replay() { }
-	~Replay() {if(payload != nullptr) delete payload; }
+	~Replay() { if(payload != nullptr) delete payload; }
 
 	/* output */
 	bool isVaild(void);

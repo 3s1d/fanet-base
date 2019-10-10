@@ -119,9 +119,7 @@ bool FanetFrameRemoteConfig::replayFeature(uint16_t num, uint8_t *payload, uint1
 		rf.init(0, static_cast<FanetFrame::FrameType_t>(0), false, nullptr, 0);	//remove feature
 	else
 		rf.init(payload[0], static_cast<FanetFrame::FrameType_t>(payload[1]&0x3F), !!(payload[1]&0x40),	&payload[2], len-2); // copy feature
-	fanet.releaseReplayFeature();
-
-	return fanet.writeReplayFeatures();
+	return fanet.releaseReplayFeature(num);
 }
 
 bool FanetFrameRemoteConfig::geofenceFeature(uint16_t num, uint8_t *payload, uint16_t len)

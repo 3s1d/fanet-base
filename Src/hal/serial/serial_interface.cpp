@@ -681,9 +681,7 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 				/* delete */
 				Replay& rf = fanet.getReplayFeature_locked(num);
 				rf.init(0, FanetFrame::TYPE_NONE, false, nullptr, 0);
-				fanet.releaseReplayFeature();
-
-				if(fanet.writeReplayFeatures())
+				if(fanet.releaseReplayFeature(num))
 					print_line(FR_REPLY_OK);
 				else
 					print_line(FR_REPLYE_WRITEFAILED);
@@ -756,9 +754,7 @@ void Serial_Interface::fanet_remote_replay(char *ch_str)
 
 	Replay& rf = fanet.getReplayFeature_locked(num);
 	rf.init(windSector, type, forward, buf, strlen(p)/2);
-	fanet.releaseReplayFeature();
-
-	if(fanet.writeReplayFeatures() == true)
+	if(fanet.releaseReplayFeature(num))
 		print_line(FR_REPLY_OK);
 	else
 		print_line(FR_REPLYE_WRITEFAILED);
