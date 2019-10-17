@@ -21,7 +21,7 @@
 #include "../../fanet/frame/fservice.h"
 #include "../../fanet/fmac.h"
 #include "../../fanet/sx1272.h"
-#include "../../dump_hash.h"			//not contained in repo for obvious reasons!
+#include "../../../../dump_hash.h"			//not contained in repo for obvious reasons!
 #include "serial_interface.h"
 
 
