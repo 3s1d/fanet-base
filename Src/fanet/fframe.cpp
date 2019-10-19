@@ -205,6 +205,8 @@ void FanetFrame::decodePayload(FanetNeighbor *neighbor)
 		FanetFrameRemoteConfig::decode(this);
 	else if(type == TYPE_LANDMARK)
 		{ /* don't care */ }
+	else if(type == TYPE_HWINFO)
+		{ /* don't care */ }
 	else
 		debug_printf("unable to decode type %d\n", type);
 

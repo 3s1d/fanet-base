@@ -54,6 +54,7 @@ public:
 		TYPE_LANDMARK = 5,
 		TYPE_REMOTECONFIG = 6,
 		TYPE_GROUNDTRACKING = 7,
+		TYPE_HWINFO = 8,
 	};
 
 protected:

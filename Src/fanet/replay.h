@@ -38,6 +38,7 @@ public:
 	void load(uint32_t addr);
 
 	FanetFrame::FrameType_t getType(void) { return type; }
+	bool used() { return type != FanetFrame::TYPE_NONE; }
 };
 
 

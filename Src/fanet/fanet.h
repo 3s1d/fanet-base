@@ -40,6 +40,9 @@ void fanet_task(void const * argument);
 #define	FANET_TYPE6_TAU_MS			30000
 #define FANET_TYPE6_PAUSE_MS			180000
 
+/* HW info */
+#define	FANET_TYPE8_TAU_MS			600000
+
 #define FLASH_PAGESIZE				2048
 #define FANET_KEYADDR_PAGE			((((uint16_t)(READ_REG(*((uint32_t *)FLASHSIZE_BASE)))) * 1024)/FLASH_PAGESIZE - 2)
 #define FANET_KEYADDR_BASE			(FLASH_BASE + FANET_KEYADDR_PAGE*FLASH_PAGESIZE)
@@ -88,6 +91,7 @@ private:
 	int16_t nextRfIdx = -1;
 	uint32_t nextServiceBroadcast = 500;
 	uint32_t txQueueLastUsed = 0;
+	uint32_t nextHwInfoBroadcast = 2000;
 
 	/* ACK buffer */
 	FanetMacAddr ackAddr;

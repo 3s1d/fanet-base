@@ -21,6 +21,7 @@
 #include "fanet.h"
 #include "frame/fname.h"
 #include "frame/fgndtracking.h"
+#include "frame/fhwinfo.h"
 #include "frame/fservice.h"
 #include "frame/ftracking.h"
 
@@ -173,6 +174,30 @@ void Fanet::handle(void)
 	}
 	else
 	{
+		if(nextHwInfoBroadcast < current)
+		{
+			/* in case of a busy channel, ensure that frames from the tx fifo gets also a change */
+			nextHwInfoBroadcast = current + FANET_TYPE8_TAU_MS;
+
+			/* count replay features */
+			osMutexWait(replayFeatureMutex, osWaitForever);
+			uint16_t usedRf = 0;
+			for(uint16_t i = numReplayFeatureNoneVolatile; i<NELEM(replayFeature); i++)
+				if(replayFeature[i].used())
+					usedRf++;
+			osMutexRelease(replayFeatureMutex);
+
+			/* broadcast HW info */
+			debug_printf("HwInfo Tx\n");
+			FanetFrame *frm = new FanetFrameHwInfo(usedRf);
+			if(fmac.transmit(frm) != 0)
+			{
+				/* failed, try again latter */
+				delete frm;
+				nextHwInfoBroadcast = current + 10000;			//10sec;
+			}
+		}
+
 		/* ensure continuous operation */
 		sx1272_setArmed(true);
 
