@@ -55,4 +55,10 @@ int16_t FanetFrameHwInfo::serialize(uint8_t*& buffer)
 	return FanetFrame::serialize(buffer);
 }
 
-
+void FanetFrameHwInfo::decode(const uint8_t *payload, const uint16_t len, bool isBroadcast)
+{
+	/* hw info request */
+	//note: has to be unicast
+	if(isBroadcast == false && len > 0 && payload != nullptr && payload[0] == 0)
+		fanet.sendHwInfo();
+}

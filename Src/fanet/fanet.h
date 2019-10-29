@@ -155,6 +155,7 @@ public:
 	/* manual / serial */
 	void manualServiceSent(void) { noAutoServiceBefore = osKernelSysTick() + 180000; }			//disable for 3min
 	void setFrameToConsole(int16_t what) { fmac.promiscuous = (what == 2) || isGeoForwarding(); _frameToConsole = what; }
+	bool sendHwInfo(void);
 
 	/* ACK */
 	void ackReset(void) {ackAddr = FanetMacAddr(); ackRes = WAIT; }

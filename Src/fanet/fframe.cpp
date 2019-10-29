@@ -14,6 +14,7 @@
 
 #include "fframe.h"
 #include "fmac.h"
+#include "frame/fhwinfo.h"
 #include "frame/fmsg.h"
 #include "frame/fgndtracking.h"
 #include "frame/fname.h"
@@ -206,7 +207,7 @@ void FanetFrame::decodePayload(FanetNeighbor *neighbor)
 	else if(type == TYPE_LANDMARK)
 		{ /* don't care */ }
 	else if(type == TYPE_HWINFO)
-		{ /* don't care */ }
+		FanetFrameHwInfo::decode(payload, payloadLength, dest == FanetMacAddr());
 	else
 		debug_printf("unable to decode type %d\n", type);
 

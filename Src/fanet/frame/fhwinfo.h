@@ -20,6 +20,7 @@ public:
 
 	/* handle payload */
 	int16_t serialize(uint8_t*& buffer);
+	static void decode(const uint8_t *payload, const uint16_t len, bool isBroadcast);
 };
 
 

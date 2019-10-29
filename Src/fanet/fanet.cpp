@@ -216,6 +216,17 @@ void Fanet::handle(void)
 	fanet.cleanNeighbors();
 }
 
+bool Fanet::sendHwInfo(void)
+{
+	/* already sent a few seconds (30s) ago */
+	if(nextHwInfoBroadcast > osKernelSysTick()+FANET_TYPE8_TAU_MS-30000 || power::isSufficiant() == false)
+		return false;
+
+	nextHwInfoBroadcast = 0;
+	return true;
+
+}
+
 std::list<FanetNeighbor*> &Fanet::getNeighbors_locked(void)
 {
 	osMutexWait(neighborMutex, osWaitForever);
