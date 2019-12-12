@@ -10,9 +10,8 @@
 
 namespace power
 {
-
+	extern bool psu;
 	bool isSufficiant(void);
-
 }
 
 

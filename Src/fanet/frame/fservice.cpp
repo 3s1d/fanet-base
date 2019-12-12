@@ -56,7 +56,7 @@ int16_t FanetFrameService::serialize(uint8_t*& buffer)
 {
 	/* prepare storage */
 	payloadLength = 1;
-	if(header & 0x7B)					//position required
+	if((header & 0x7B) || fanet.position != Coordinate3D())		//position required || position given
 		payloadLength += 6;
 	if(header & (1<<FANETFRAMESERVICE_TEMP))
 		payloadLength++;
@@ -79,7 +79,8 @@ int16_t FanetFrameService::serialize(uint8_t*& buffer)
 	header |= (!!hasInet)<<FANETFRAMESERVICE_INET;
 	header |= (!!remoteCfgSupported)<<FANETFRAMESERVICE_REMOTECFGSUPPORT;
 	payload[0] = header;
-	coord2payload_absolut(fanet.position, &payload[1]);
+	if(payloadLength >= 7)
+		coord2payload_absolut(fanet.position, &payload[1]);
 
 	//extended header currently not supported
 

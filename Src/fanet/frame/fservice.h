@@ -36,8 +36,8 @@ public:
 	bool hasInet = false;
 	bool remoteCfgSupported = false;
 
-	FanetFrameService(bool hasInet = false, bool remoteCfgSupported = false) : FanetFrame(), hasInet(hasInet), remoteCfgSupported(remoteCfgSupported)
-		{ _type = FanetFrame::TYPE_SERVICE; }
+	FanetFrameService(bool hasInet = false, bool remoteCfgSupported = false) :
+		FanetFrame(), hasInet(hasInet), remoteCfgSupported(remoteCfgSupported) { _type = FanetFrame::TYPE_SERVICE; }
 
 	/* define state */
 	void setTemperature(float temp);

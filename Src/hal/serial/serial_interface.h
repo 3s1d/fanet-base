@@ -123,33 +123,34 @@ void wire_task(void const * argument);
 /*
  * Normal Commands
  *
- * Weather:		#FNW inet(0..1),[temperature(float)],							note: despite of inet everything is
+ * Direct Weather:	#FNW inet(0..1),[temperature(float)],						note: despite of inet everything is
  * 				[wind direction(degree,float)],							optional. just put correct amount
  * 				[wind speed(kmph,float)],[wind gust(kmph,float)],				of commas.
  * 				[humidity(percent,float)],[pressure(hPa,float)]
- * Dump:		#FND											note: one neighbor per line
+ * Dump:		#FND										note: one neighbor per line
  * Transmit: 		#FNT type,dest_manufacturer,dest_id,forward,ack_required,length,length*2hex[,signature]	note: all values in hex
  *
- * Address: 		#FNA manufacturer(hex),id(hex)								note: w/o address is returned
- * Neighbors:		#FNN											note: one neighbor per line
- * Print frame:		#FNP toConsole (0..2)
+ * Address: 		#FNA manufacturer(hex),id(hex)							note: w/o address is returned
+ * Neighbors:		#FNN										note: one neighbor per line
+ * Print frame:		#FNP toConsole (0..2)								note: 0=off(default), 1=on, 2=everything
+ * Config:		#FNC Inet(0..1, for type 4)							note: Inet=1 sets toConsole to >0 as well
  *
  * Remote Key:		#FRK key
- * Replay Feature:	#FRR num(hex)[,type(hex),windsector(hex, always=FF),forwarding(0..1),payload]		note: only until num gives an reply,
- * 														note: #FRR num,0 -> clean
+ * Replay Feature:	#FRR num(hex)[,type(hex),windsector(hex, always=FF),forwarding(0..1),payload]	note: only until num gives an reply,
+ * 													note: #FRR num,0 -> clean
  * GeoFrence		#FRG num(0..3)[,numVertices(hex)[,floor(hex m),ceiling(hex m),[,lat(float deg),lon(float deg)] 'num' times]]
- * 														note: #FRG num,0 -> clean
+ * 													note: #FRG num,0 -> clean
  *
  * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload
  *
  * Maintenance/Dongle
  * Version:		#DGV
- * Power:		#DGP powermode(0..1)									note: w/o status is returned
- * Region:		#DGL freq(868,915),power(2..20 (dBm))							note: 10dBm for Skytraxx stock antenna
- * Coordinate:		#DGC latitude,longitude,altitude,heading						note: in degree
+ * Power:		#DGP powermode(0..2)								note: 0=off, 1=on(compare, default), 2=psu
+ * Region:		#DGL freq(868,915),power(2..20 (dBm))						note: 10dBm for Skytraxx stock antenna
+ * Coordinate:		#DGC latitude,longitude,altitude,heading					note: in degree
  *
- * Jump to DFU:		#DGJ BLstm										stm32 default bootloader
- * 														recommended: use 2 GPIOs connected
+ * Jump to DFU:		#DGJ BLstm									note: stm32 default bootloader
+ * 													recommended: use 2 GPIOs connected
  * 															to RESEST and BOOT0
  */
 
@@ -168,6 +169,7 @@ private:
 	void fanet_cmd_promiscuous(char *ch_str);
 	void fanet_cmd_weather(char *ch_str);
 	void fanet_cmd_dump(char *ch_str);
+	void fanet_cmd_config(char *ch_str);
 
 	void fanet_remote_eval(char *str);
 	void fanet_remote_key(char *ch_str);

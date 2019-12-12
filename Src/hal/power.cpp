@@ -11,6 +11,7 @@
 
 #include "power.h"
 
+bool power::psu = false;
 
 /* Cap > 2.225V */
 bool power::isSufficiant(void)
@@ -18,6 +19,10 @@ bool power::isSufficiant(void)
 #ifdef DEBUG
 	return true;
 #endif
+
+	/* power always sufficiant on PSU  */
+	if(psu)
+		return true;
 
 	static uint32_t nextPwr = 0;
 	static bool pwrSuf = false;

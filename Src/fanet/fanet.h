@@ -120,6 +120,8 @@ public:
 
 	const int16_t &frameToConsole;
 
+	bool hasInet = false;
+
 	Fanet() : Fapp(), position(_position), heading(_heading), frameToConsole(_frameToConsole) { }
 	void init(FanetMac *fmac);
 

@@ -331,7 +331,7 @@ FanetFrame *Fanet::broadcastIntended(void)
 	if(nextServiceBroadcast > current)
 		return nullptr;
 
-	FanetFrameService *sfrm = new FanetFrameService(false, strlen(fanet.key)>0);		//no Inet but remoteCfg if key present
+	FanetFrameService *sfrm = new FanetFrameService(fanet.hasInet, strlen(fanet.key)>0);
 	debug_printf("Service Tx\n");
 
 	/* wind */
@@ -347,7 +347,8 @@ FanetFrame *Fanet::broadcastIntended(void)
 		sfrm->setHumidity(rh);
 
 	/* power */
-	sfrm->setSoc(power::isSufficiant() ? 100.0f : 30.0f);
+	if(power::psu == false)
+		sfrm->setSoc(power::isSufficiant() ? 100.0f : 30.0f);
 
 	/* in case of a busy channel, ensure that frames from the tx fifo gets also a change */
 	nextServiceBroadcast = current + 1000;

@@ -16,6 +16,7 @@
 #include "usart.h"
 
 #include "serial.h"
+#include "../power.h"
 #include "../../fanet/fanet.h"
 #include "../../fanet/frame/fremotecfg.h"
 #include "../../fanet/frame/fservice.h"
@@ -421,7 +422,7 @@ void Serial_Interface::fanet_cmd_neighbor(char *ch_str)
 
 void Serial_Interface::fanet_cmd_promiscuous(char *ch_str)
 {
-	/* remove \r\n and any spaces*/
+	/* remove \r\n and any spaces */
 	char *ptr = strchr(ch_str, '\r');
 	if(ptr == nullptr)
 		ptr = strchr(ch_str, '\n');
@@ -546,6 +547,34 @@ void Serial_Interface::fanet_cmd_dump(char *ch_str)
 	print_line(FN_REPLY_OK);
 }
 
+void Serial_Interface::fanet_cmd_config(char *ch_str)
+{
+	/* remove \r\n and any spaces */
+	char *ptr = strchr(ch_str, '\r');
+	if(ptr == nullptr)
+		ptr = strchr(ch_str, '\n');
+	if(ptr != nullptr)
+		*ptr = '\0';
+	while(*ch_str == ' ')
+		ch_str++;
+
+	if(strlen(ch_str) == 0)
+	{
+		/* report armed state */
+		char buf[64];
+		snprintf(buf, sizeof(buf), "%s%c %X\n", FANET_CMD_START, CMD_CONFIG, fanet.hasInet);
+		print(buf);
+		return;
+	}
+
+	/* set status */
+	//note: if we have Inet, we need to forward the data somehow -> print to console
+	fanet.hasInet = !!atoi(ch_str);
+	if(fanet.hasInet && fanet.frameToConsole == 0)
+		fanet.setFrameToConsole(1);
+	print_line(FN_REPLY_OK);
+}
+
 /* mux string */
 void Serial_Interface::fanet_cmd_eval(char *str)
 {
@@ -568,6 +597,9 @@ void Serial_Interface::fanet_cmd_eval(char *str)
 		break;
 	case CMD_PRINT2CONSOLE:
 		fanet_cmd_promiscuous(&str[strlen(FANET_CMD_START) + 1]);
+		break;
+	case CMD_CONFIG:
+		fanet_cmd_config(&str[strlen(FANET_CMD_START) + 1]);
 		break;
 	default:
 		print_line(FN_REPLYE_FN_UNKNOWN_CMD);
@@ -1012,12 +1044,13 @@ void Serial_Interface::dongle_cmd_power(char *ch_str)
 	{
 		/* report armed state */
 		char buf[64];
-		snprintf(buf, sizeof(buf), "%s%c %X\n", DONGLE_CMD_START, CMD_POWER, sx1272_isArmed());
+		snprintf(buf, sizeof(buf), "%s%c %X\n", DONGLE_CMD_START, CMD_POWER, sx1272_isArmed() + power::psu);
 		print(buf);
 		return;
 	}
 
 	/* set status */
+	power::psu = (atoi(ch_str) == 2);
 	if(sx1272_setArmed(!!atoi(ch_str)))
 		print_line(DN_REPLY_OK);
 	else
