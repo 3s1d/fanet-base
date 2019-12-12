@@ -34,7 +34,7 @@ void fanet_task(void const * argument);
 #define FANET_RADIO_UPTIME			750
 
 /* service */
-#define	FANET_TYPE4_TAU_MS			20000
+#define	FANET_TYPE4_TAU_MS			40000
 
 /* remote configuration, replayed data */
 #define	FANET_TYPE6_TAU_MS			30000
