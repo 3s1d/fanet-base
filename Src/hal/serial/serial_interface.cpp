@@ -1108,7 +1108,7 @@ void Serial_Interface::dongle_cmd_location(char *ch_str)
 		{
 			/* report location */
 			char buf[64];
-			snprintf(buf, sizeof(buf), "%s%c %.5f,%.5f,%.f,%.1f\n", REMOTE_CMD_START, CMD_COORDINATE,
+			snprintf(buf, sizeof(buf), "%s%c %.5f,%.5f,%.f,%.1f\n", DONGLE_CMD_START, CMD_COORDINATE,
 					rad2deg(fanet.position.latitude), rad2deg(fanet.position.longitude), fanet.position.altitude, fanet.heading);
 			print(buf);
 		}
