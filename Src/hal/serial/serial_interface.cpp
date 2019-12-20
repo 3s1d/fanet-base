@@ -1114,7 +1114,7 @@ void Serial_Interface::dongle_cmd_location(char *ch_str)
 		}
 		else
 		{
-			print_line(FR_REPLYE_LOCATIONNOTSET);
+			print_line(DN_REPLYE_LOCATIONNOTSET);
 		}
 		return;
 	}
@@ -1125,26 +1125,26 @@ void Serial_Interface::dongle_cmd_location(char *ch_str)
 	p = strchr(p, SEPARATOR);
 	if(p == nullptr)
 	{
-		print_line(FR_REPLYE_CMDTOOSHORT);
+		print_line(DN_REPLYE_TOOLESSPARAMETER);
 		return;
 	}
 	const float lon = atof(++p);
 	p = strchr(p, SEPARATOR);
 	if(p == nullptr)
 	{
-		print_line(FR_REPLYE_CMDTOOSHORT);
+		print_line(DN_REPLYE_TOOLESSPARAMETER);
 		return;
 	}
 	const float alt = atof(++p);
 	p = strchr(p, SEPARATOR);
 	if(p == nullptr)
 	{
-		print_line(FR_REPLYE_CMDTOOSHORT);
+		print_line(DN_REPLYE_TOOLESSPARAMETER);
 		return;
 	}
 	const float heading = atof(++p);
 	if(fanet.writePosition(Coordinate3D(deg2rad(lat), deg2rad(lon), alt), heading) == true)
-		print_line(FR_REPLY_OK);
+		print_line(DN_REPLY_OK);
 	else
 		print_line(FR_REPLYE_WRITEFAILED);
 }

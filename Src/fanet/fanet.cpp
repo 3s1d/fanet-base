@@ -402,8 +402,8 @@ void Fanet::handleFrame(FanetFrame *frm)
 
 	/* forward? */
 	//note: do not forward already forwarded frames
-	if(fmac.forwardAble(frm) || frm->dest == fmac.addr || frm->geoForward || sx1272_get_airlimit() > 0.8f || fmac.txQueueHasFreeSlots() == false ||
-			power::isSufficiant() == false)
+	if(fmac.forwardAble(frm) || frm->dest == fmac.addr || frm->geoForward || sx1272_get_airlimit() > 0.8f ||
+			fmac.txQueueHasFreeSlots() == false || power::isSufficiant() == false)
 		return;
 
 	debug_printf("%02X:%04X->%02X:%04X %X: ", frm->src.manufacturer, frm->src.id, frm->dest.manufacturer, frm->dest.id, frm->type);

@@ -100,7 +100,6 @@ void wire_task(void const * argument);
 #define FN_REPLYE_NOPOSITION		FANET_CMD_ERROR, 31, "no location"
 #define FR_REPLY_OK			REMOTE_CMD_OK, 	 0,  ""
 #define FR_REPLYE_KEYNOTSET		REMOTE_CMD_ERROR,35, "key not set"
-#define FR_REPLYE_LOCATIONNOTSET	REMOTE_CMD_ERROR,36, "location not set"
 #define FR_REPLYE_CMDTOOSHORT		REMOTE_CMD_ERROR,37, "too short"
 #define FR_REPLYE_OUTOFBOUND		REMOTE_CMD_ERROR,38, "out of bound"
 #define FR_REPLYE_ALIGN			REMOTE_CMD_ERROR,39, "align"
@@ -114,6 +113,8 @@ void wire_task(void const * argument);
 #define DN_REPLYE_TOOLESSPARAMETER	DONGLE_CMD_ERROR,80, "too less parameter"
 #define DN_REPLYE_UNKNOWNPARAMETER	DONGLE_CMD_ERROR,81, "unknown parameter"
 #define DN_REPLYE_OUTOFMEMORY		DONGLE_CMD_ERROR,85, "out of memory"
+#define DN_REPLYE_LOCATIONNOTSET	DONGLE_CMD_ERROR,90, "location not set"
+#define DN_REPLYE_WRITEFAILED		DONGLE_CMD_ERROR,91, "write failed"
 
 #ifdef FLARM
 #define FA_REPLY_OK			FLARM_CMD_OK, 	 0,  ""
