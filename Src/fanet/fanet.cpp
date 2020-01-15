@@ -360,7 +360,7 @@ void Fanet::broadcastSuccessful(FanetFrame::FrameType_t type)
 	const uint32_t current = osKernelSysTick();
 
 	/* service frame */
-	nextServiceBroadcast = current + (numNeighbors()/20+1) * FANET_TYPE4_TAU_MS * (!!power::isSufficiant() + 1);
+	nextServiceBroadcast = current + (numNeighbors()/20+1) * FANET_TYPE4_TAU_MS * (!power::isSufficiant() + 1);
 }
 
 void Fanet::handleAcked(bool ack, FanetMacAddr &addr)
