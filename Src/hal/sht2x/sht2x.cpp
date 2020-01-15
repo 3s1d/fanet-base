@@ -10,12 +10,13 @@
 
 #include "cmsis_os.h"
 #include "main.h"
-
 #include "print.h"
 
 #include "../power.h"
 #include "si2c_master.h"
 #include "sht2x.h"
+
+uint32_t sht2x_forceConversion_next = 0;
 
 void sht2x_task(void const * argument)
 {
@@ -24,7 +25,14 @@ void sht2x_task(void const * argument)
 
 	while(1)
 	{
-		sht2x.handle(power::isSufficiant());
+		/* sensor conversion */
+		//note: in case of forced forced single shot, temperature will be stores for one cycle (2min)
+		const uint32_t current = osKernelSysTick();
+		const bool doEval = sht2x_forceConversion_next < current || power::isSufficiant();
+		sht2x.handle(doEval);
+		if(doEval)
+			sht2x_forceConversion_next = current + SHT2X_FORCECONVERSION_INTERVALL_MS;
+
 		osDelay(120000);			//wait two minutes
 	}
 }
