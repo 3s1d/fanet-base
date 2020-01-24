@@ -98,6 +98,7 @@ void wire_task(void const * argument);
 #define FN_REPLYE_ADDR_GIVEN		FANET_CMD_ERROR, 15, "address already set"
 #define FN_REPLYE_CMD_TOO_SHORT		FANET_CMD_ERROR, 30, "too short"
 #define FN_REPLYE_NOPOSITION		FANET_CMD_ERROR, 31, "no location"
+#define FN_REPLYE_UNALLOWED		FANET_CMD_ERROR, 32, "not allowed"
 #define FR_REPLY_OK			REMOTE_CMD_OK, 	 0,  ""
 #define FR_REPLYE_KEYNOTSET		REMOTE_CMD_ERROR,35, "key not set"
 #define FR_REPLYE_CMDTOOSHORT		REMOTE_CMD_ERROR,37, "too short"

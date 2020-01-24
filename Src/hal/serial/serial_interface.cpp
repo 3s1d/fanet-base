@@ -183,9 +183,31 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 		frm->payload[i] = strtol(sstr,  nullptr,  16);
 	}
 
-	/* signature */
+	/* signature optional*/
 	if((p = strchr(p, SEPARATOR)) != nullptr)
+	{
 		frm->signature = ((uint32_t)strtoll(++p, nullptr, 16));
+
+		/* src addr optional */
+		uint32_t addr_manu, addr_id;
+		if((p = strchr(p, SEPARATOR)) != nullptr && (addr_manu = ((uint32_t)strtoll(++p, nullptr, 16))) &&
+				(p = strchr(p, SEPARATOR)) != nullptr && (addr_id = ((uint32_t)strtoll(++p, nullptr, 16))))
+		{
+			/* manufacturer must be on white list */
+			if(addr_manu == 0x00 || addr_manu >= 0xff || 			//reserved manufacturers
+				(addr_manu != 0x01 &&					//Skytraxx FANET only
+				addr_manu != 0x06 && 					//Burnair
+				addr_manu != 0xFC && addr_manu != 0xFD))		//unregistered devices
+			{
+				print_line(FN_REPLYE_UNALLOWED);
+				delete frm;
+				return;
+			}
+
+			frm->src.manufacturer = addr_manu;
+			frm->src.id = addr_id;
+		}
+	}
 
 	/* pass to mac */
 	if(fmac.transmit(frm) == 0)
@@ -406,8 +428,9 @@ void Serial_Interface::fanet_cmd_neighbor(char *ch_str)
 	std::list<FanetNeighbor*> neighbors = fanet.getNeighbors_locked();
 	for(auto neighbor : neighbors)
 	{
-		char buf[48];
-		snprintf(buf, sizeof(buf), "%02X,%04X", neighbor->addr.manufacturer, neighbor->addr.id);
+		char buf[32];
+		snprintf(buf, sizeof(buf), "%02X,%04X,%X,%X",
+				neighbor->addr.manufacturer, neighbor->addr.id, neighbor->status, neighbor->aircraft);
 		print(buf);
 		if(strlen(neighbor->name))
 		{
