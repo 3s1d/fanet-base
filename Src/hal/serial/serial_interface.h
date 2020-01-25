@@ -130,7 +130,8 @@ void wire_task(void const * argument);
  * 				[wind speed(kmph,float)],[wind gust(kmph,float)],				of commas.
  * 				[humidity(percent,float)],[pressure(hPa,float)]
  * Dump:		#FND										note: one neighbor per line
- * Transmit: 		#FNT type,dest_manufacturer,dest_id,forward,ack_required,length,length*2hex[,signature]	note: all values in hex
+ * Transmit: 		#FNT type,dest_manufacturer,dest_id,forward,ack_required,length,length*2hex[,signature,src_manu,src_id]
+ * 													note: all values in hex
  *
  * Address: 		#FNA manufacturer(hex),id(hex)							note: w/o address is returned
  * Neighbors:		#FNN										note: one neighbor per line
@@ -143,7 +144,9 @@ void wire_task(void const * argument);
  * GeoFrence		#FRG num(0..3)[,numVertices(hex)[,floor(hex m),ceiling(hex m),[,lat(float deg),lon(float deg)] 'num' times]]
  * 													note: #FRG num,0 -> clean
  *
- * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload
+ * Receive a Frame:	#FNF src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload[,dest_manu,dest_id]
+ * 													note: in case of promiscuous dest addr will
+ * 														be added
  *
  * Maintenance/Dongle
  * Version:		#DGV

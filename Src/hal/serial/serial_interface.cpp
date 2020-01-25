@@ -1251,7 +1251,7 @@ void Serial_Interface::handleFrame(FanetFrame *frm)
 	/* simply print frame */
 	/* src_manufacturer,src_id,broadcast,signature,type,payloadlength,payload */
 
-	char buf[128];
+	char buf[160];
 	snprintf(buf, sizeof(buf), "%s %X,%X,%X,%X,%X,%X,",
 			FANET_CMD_START CMD_RX_FRAME, frm->src.manufacturer, frm->src.id, frm->dest==FanetMacAddr(), (unsigned int)frm->signature,
 			frm->type, frm->payloadLength);
@@ -1259,6 +1259,14 @@ void Serial_Interface::handleFrame(FanetFrame *frm)
 
 	/* payload */
 	print_raw(frm->payload, frm->payloadLength);
+
+	/* promiscuous mode */
+	if(frm->dest != fmac.addr && frm->dest != FanetMacAddr())
+	{
+		snprintf(buf, sizeof(buf), ",%X,%X,%X", frm->dest.manufacturer, frm->dest.id, !!frm->ackRequested);
+		print(buf);
+	}
+
 	print("\n");
 }
 
