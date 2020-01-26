@@ -26,6 +26,7 @@ void wire_task(void const * argument);
 #include "../../fanet/fmac.h"
 
 
+#define CMD_INDICATOR			'#'
 #define FANET_CMD_START			"#FN"
 #define REMOTE_CMD_START		"#FR"
 #define DONGLE_CMD_START		"#DG"
@@ -98,7 +99,9 @@ void wire_task(void const * argument);
 #define FN_REPLYE_ADDR_GIVEN		FANET_CMD_ERROR, 15, "address already set"
 #define FN_REPLYE_CMD_TOO_SHORT		FANET_CMD_ERROR, 30, "too short"
 #define FN_REPLYE_NOPOSITION		FANET_CMD_ERROR, 31, "no location"
-#define FN_REPLYE_UNALLOWED		FANET_CMD_ERROR, 32, "not allowed"
+#define FN_REPLYE_NOTALLOWED		FANET_CMD_ERROR, 32, "not allowed"
+#define FN_REPLYE_FRM_TOO_LONG		FANET_CMD_ERROR, 33, "frm too long"
+#define FN_REPLYE_CMD_BROKEN		FANET_CMD_ERROR, 34, "frm broken"
 #define FR_REPLY_OK			REMOTE_CMD_OK, 	 0,  ""
 #define FR_REPLYE_KEYNOTSET		REMOTE_CMD_ERROR,35, "key not set"
 #define FR_REPLYE_CMDTOOSHORT		REMOTE_CMD_ERROR,37, "too short"
@@ -106,7 +109,7 @@ void wire_task(void const * argument);
 #define FR_REPLYE_ALIGN			REMOTE_CMD_ERROR,39, "align"
 #define FR_REPLYM_EMPTY			REMOTE_CMD_MSG,  40, "empty"
 #define FR_REPLYE_WRITEFAILED		REMOTE_CMD_ERROR,41, "write failed"
-#define FR_REPLYE_CMD_TOO_SHORT		FANET_CMD_ERROR, 32, "too short"
+#define FR_REPLYE_CMD_TOO_SHORT		REMOTE_CMD_ERROR,42, "too short"
 #define DN_REPLY_OK			DONGLE_CMD_OK, 	 0,  ""
 #define DN_REPLYE_DONGLE_UNKNOWN_CMD	DONGLE_CMD_ERROR,60, "unknown DG command"
 #define DN_REPLYE_JUMP			DONGLE_CMD_ERROR,61, "unknown jump point"

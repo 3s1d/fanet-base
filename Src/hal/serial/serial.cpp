@@ -22,7 +22,7 @@
  * serial input -> buffer
  */
 
-CIRC_BUF_DEF(serial_uart_rx_buffer, 512);
+CIRC_BUF_DEF(serial_uart_rx_buffer, 768);
 serial_t serialPort = {0};
 
 uint8_t serial_uart_inchr = '\0';
@@ -31,14 +31,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	if(huart != serialPort.uart)
 		return;
 
-	circ_buf_push(&serial_uart_rx_buffer, serial_uart_inchr);
-	if (serial_uart_inchr == '\n')
+	/* continue receiving as quickly as possible */
+	volatile const uint8_t rxed = serial_uart_inchr;
+	HAL_UART_Receive_IT(serialPort.uart, &serial_uart_inchr, 1);
+
+	/* add to ring buffer and check for line end */
+	if (circ_buf_push(&serial_uart_rx_buffer, rxed) == 0 && rxed == '\n')
 	{
 		serialPort.pushed_cmds++;
 		osMessagePut(serialPort.queueID, SERIAL_LINE, osWaitForever);
 	}
-
-	HAL_UART_Receive_IT(serialPort.uart, &serial_uart_inchr, 1);
 }
 
 
@@ -73,7 +75,7 @@ bool poll(serial_t *serial, char *line, int num)
 		return false;
 
 	int pos;
-	for(pos=0; circ_buf_pop(serial->rx_crc_buf, (uint8_t *) &line[pos])==0 && pos < num; pos++)
+	for(pos=0; pos < num && circ_buf_pop(serial->rx_crc_buf, (uint8_t *) &line[pos])==0; pos++)
 	{
 		if(line[pos] == '\n')
 		{

@@ -116,6 +116,23 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 	while(*ch_str == ' ')
 		ch_str++;
 
+	/* integrity check */
+	for(char *ptr = ch_str; *ptr != '\0'; ptr++)
+	{
+		if(*ptr >= '0' && *ptr <= '9')
+			continue;
+		if(*ptr >= 'A' && *ptr <= 'F')
+			continue;
+		if(*ptr >= 'a' && *ptr <= 'f')
+			continue;
+		if(*ptr == ',')
+			continue;
+
+		/* not allowed char */
+		print_line(FN_REPLYE_CMD_BROKEN);
+		return;
+	}
+
 	/* w/o an address we can not tx */
 	if(fmac.addr == FanetMacAddr())
 	{
@@ -162,6 +179,12 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 	/* payload */
 	p = strchr(p, SEPARATOR)+1;
 	frm->payloadLength = strtol(p, nullptr, 16);
+	if(frm->payloadLength >= 128)
+	{
+		delete frm;
+		print_line(FN_REPLYE_FRM_TOO_LONG);
+		return;
+	}
 	frm->payload = new uint8_t[frm->payloadLength];
 	if(frm->payload == nullptr)
 	{
@@ -199,7 +222,7 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 				addr_manu != 0x06 && 					//Burnair
 				addr_manu != 0xFC && addr_manu != 0xFD))		//unregistered devices
 			{
-				print_line(FN_REPLYE_UNALLOWED);
+				print_line(FN_REPLYE_NOTALLOWED);
 				delete frm;
 				return;
 			}
@@ -1203,21 +1226,27 @@ void Serial_Interface::handle_rx(void)
 	if(myserial == nullptr)
 		return;
 
-	char line[256];
+	char line[384];
 	bool cmd_rxd = serial::poll(myserial, line, sizeof(line));
 	if (cmd_rxd == false)
 		return;
+
+	/* find latest CMD_INDICATOR */
+	char *cmdStart = line;
+	for(char *ptr=cmdStart; *ptr!='\0'; ptr++)
+		if(*ptr == CMD_INDICATOR)
+			cmdStart = ptr;
 
 	/* Process message */
 #if defined(DEBUG) && (SERIAL_debug_mode > 1)
 	printf("### rx:'%s'\n", line);
 #endif
-	if(!strncmp(line, FANET_CMD_START, 3))
-		fanet_cmd_eval(line);
-	else if(!strncmp(line, REMOTE_CMD_START, 3))
-		fanet_remote_eval(line);
-	else if(!strncmp(line, DONGLE_CMD_START, 3))
-		dongle_eval(line);
+	if(!strncmp(cmdStart, FANET_CMD_START, 3))
+		fanet_cmd_eval(cmdStart);
+	else if(!strncmp(cmdStart, REMOTE_CMD_START, 3))
+		fanet_remote_eval(cmdStart);
+	else if(!strncmp(cmdStart, DONGLE_CMD_START, 3))
+		dongle_eval(cmdStart);
 	else
 		print_line(FN_REPLYE_UNKNOWN_CMD);
 
