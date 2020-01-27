@@ -25,25 +25,32 @@
 CIRC_BUF_DEF(serial_uart_rx_buffer, 768);
 serial_t serialPort = {0};
 
-uint8_t serial_uart_inchr = '\0';
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+uint8_t serial_uart_fifo[256];
+uint16_t serial_uart_idx = 0;
+
+void serialRxCallback(UART_HandleTypeDef *huart)
 {
 	if(huart != serialPort.uart)
 		return;
 
-	/* continue receiving as quickly as possible */
-	volatile const uint8_t rxed = serial_uart_inchr;
-	HAL_UART_Receive_IT(serialPort.uart, &serial_uart_inchr, 1);
+	/* initial state ignore */
+	if(__HAL_DMA_GET_COUNTER(huart->hdmarx) == 0)
+		return;
 
-	/* add to ring buffer and check for line end */
-	if (circ_buf_push(&serial_uart_rx_buffer, rxed) == 0 && rxed == '\n')
+	while(serial_uart_idx != (sizeof(serial_uart_fifo) - __HAL_DMA_GET_COUNTER(huart->hdmarx)))
 	{
-		serialPort.pushed_cmds++;
-		osMessagePut(serialPort.queueID, SERIAL_LINE, osWaitForever);
+		/* add to ring buffer and check for line end */
+		if (circ_buf_push(&serial_uart_rx_buffer, serial_uart_fifo[serial_uart_idx]) == 0 && serial_uart_fifo[serial_uart_idx] == '\n')
+		{
+			serialPort.pushed_cmds++;
+			osMessagePut(serialPort.queueID, SERIAL_LINE, osWaitForever);
+		}
+
+		/* advance ring index */
+		if(++serial_uart_idx >= sizeof(serial_uart_fifo))
+			serial_uart_idx -= sizeof(serial_uart_fifo);
 	}
 }
-
-
 
 namespace serial
 {
@@ -51,6 +58,8 @@ namespace serial
 serial_t *init(UART_HandleTypeDef *uart)
 {
 	serialPort.uart = uart;
+	serialPort.uart->RxCpltCallback = serialRxCallback;
+	serialPort.uart->RxHalfCpltCallback = serialRxCallback;
 	serialPort.rx_crc_buf = &serial_uart_rx_buffer;
 
 	/* Queue */
@@ -58,7 +67,8 @@ serial_t *init(UART_HandleTypeDef *uart)
 	serialPort.queueID = osMessageCreate (osMessageQ(Serial_Queue), NULL);
 
 	/* enable uart receiver */
-	HAL_UART_Receive_IT(serialPort.uart, &serial_uart_inchr, 1);
+	__HAL_UART_ENABLE_IT(serialPort.uart, UART_IT_IDLE);
+	HAL_UART_Receive_DMA(serialPort.uart, serial_uart_fifo, sizeof(serial_uart_fifo));
 
 	return &serialPort;
 }
@@ -69,7 +79,7 @@ bool poll(serial_t *serial, char *line, int num)
 		return false;
 
 	/* ensure receiver is on */
-	HAL_UART_Receive_IT(serial->uart, &serial_uart_inchr, 1);
+	//HAL_UART_Receive_IT(serial->uart, &serial_uart_inchr, 1);
 
 	if(serial->pushed_cmds == serial->pulled_cmds)
 		return false;

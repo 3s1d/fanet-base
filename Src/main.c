@@ -23,6 +23,7 @@
 #include "cmsis_os.h"
 #include "adc.h"
 #include "comp.h"
+#include "dma.h"
 #include "usart.h"
 #include "spi.h"
 #include "gpio.h"
@@ -150,6 +151,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_LPUART1_UART_Init();
   MX_SPI3_Init();
   MX_ADC1_Init();

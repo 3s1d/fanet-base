@@ -24,6 +24,7 @@
 #include "cmsis_os.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "hal/serial/serial.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,6 +58,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern DMA_HandleTypeDef hdma_lpuart_rx;
 extern UART_HandleTypeDef hlpuart1;
 extern TIM_HandleTypeDef htim1;
 
@@ -203,6 +205,20 @@ void EXTI15_10_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles DMA2 channel7 global interrupt.
+  */
+void DMA2_Channel7_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Channel7_IRQn 0 */
+
+  /* USER CODE END DMA2_Channel7_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_lpuart_rx);
+  /* USER CODE BEGIN DMA2_Channel7_IRQn 1 */
+
+  /* USER CODE END DMA2_Channel7_IRQn 1 */
+}
+
+/**
   * @brief This function handles LPUART1 global interrupt.
   */
 void LPUART1_IRQHandler(void)
@@ -212,7 +228,11 @@ void LPUART1_IRQHandler(void)
   /* USER CODE END LPUART1_IRQn 0 */
   HAL_UART_IRQHandler(&hlpuart1);
   /* USER CODE BEGIN LPUART1_IRQn 1 */
-
+  if (hlpuart1.Instance->ISR & UART_FLAG_IDLE)
+  {
+	  hlpuart1.Instance->ICR = UART_CLEAR_IDLEF;
+	  serialRxCallback(&hlpuart1);
+  }
   /* USER CODE END LPUART1_IRQn 1 */
 }
 
