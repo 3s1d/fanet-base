@@ -107,7 +107,7 @@ void Serial_Interface::fanet_cmd_transmit(char *ch_str)
 	printf("### Packet %s\n", ch_str);
 #endif
 
-	/* remove \r\n and any spaces*/
+	/* remove \r\n and any spaces */
 	char *ptr = strchr(ch_str, '\r');
 	if(ptr == nullptr)
 		ptr = strchr(ch_str, '\n');

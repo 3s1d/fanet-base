@@ -406,7 +406,7 @@ void Fanet::handleFrame(FanetFrame *frm)
 			fmac.txQueueHasFreeSlots() == false || power::isSufficiant() == false)
 		return;
 
-	debug_printf("%02X:%04X->%02X:%04X %X: ", frm->src.manufacturer, frm->src.id, frm->dest.manufacturer, frm->dest.id, frm->type);
+//	debug_printf("%02X:%04X->%02X:%04X %X: ", frm->src.manufacturer, frm->src.id, frm->dest.manufacturer, frm->dest.id, frm->type);
 
 	/* get involved positions and time */
 	Coordinate3D srcPos = Coordinate3D();
@@ -423,7 +423,7 @@ void Fanet::handleFrame(FanetFrame *frm)
 	if(current > lastFw + 4000 && lastFw + tau > current)
 	{
 #ifdef DEBUG
-		printf("dropped, too often\n");
+//		printf("dropped, too often\n");
 #endif
 		return;
 	}
@@ -454,7 +454,7 @@ void Fanet::handleFrame(FanetFrame *frm)
 	if(doForward == false)
 	{
 #ifdef DEBUG
-		printf("dropped, not within fence\n");
+//		printf("dropped, not within fence\n");
 #endif
 		return;
 	}

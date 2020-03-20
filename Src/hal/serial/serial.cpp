@@ -78,9 +78,6 @@ bool poll(serial_t *serial, char *line, int num)
 	if(serial == nullptr || serialPort.uart == nullptr)
 		return false;
 
-	/* ensure receiver is on */
-	//HAL_UART_Receive_IT(serial->uart, &serial_uart_inchr, 1);
-
 	if(serial->pushed_cmds == serial->pulled_cmds)
 		return false;
 
