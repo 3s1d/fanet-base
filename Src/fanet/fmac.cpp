@@ -264,7 +264,7 @@ void FanetMac::handleRx()
  */
 void FanetMac::handleTx()
 {
-	/* still in backoff or chip turned off*/
+	/* still in backoff or chip turned off */
 	if (osKernelSysTick() < csmaNextTx  || !sx1272_isArmed())
 		return;
 
@@ -382,7 +382,7 @@ void FanetMac::handleTx()
 
 		/* prepare for a new transmission in */
 		csmaBackoffExp = MAC_TX_BACKOFF_EXP_MIN;
-		csmaNextTx = HAL_GetTick() + MAC_TX_MINPREAMBLEHEADERTIME_MS + (blength * MAC_TX_TIMEPERBYTE_MS);
+		csmaNextTx = osKernelSysTick() + MAC_TX_MINPREAMBLEHEADERTIME_MS + (blength * MAC_TX_TIMEPERBYTE_MS);
 	}
 	else if (txRet == TX_RX_ONGOING || txRet == TX_TX_ONGOING)
 	{

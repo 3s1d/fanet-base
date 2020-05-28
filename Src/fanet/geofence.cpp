@@ -190,7 +190,7 @@ void GeoFence::load(uint32_t addr)
 	float floor = *fptr++;
 	float ceiling = *fptr++;
 	init(num, ceiling, floor);
-	//debug_printf("Geo Fence %.f-%.fm (%d)\n", floor, ceiling, num);
+	debug_printf("Geo Fence %.f-%.fm (%d)\n", floor, ceiling, num);
 
 	/* vertices */
 	for(uint16_t i=0; i<num; i++)
@@ -199,7 +199,7 @@ void GeoFence::load(uint32_t addr)
 		float lon = *fptr++;
 		Coordinate2D v = Coordinate2D(lat, lon);
 		add(i, v);
-		//debug_printf("#%d %.4f,%4f\n", i, rad2deg(lat), rad2deg(lon));
+		debug_printf("#%d %.4f,%4f\n", i, rad2deg(lat), rad2deg(lon));
 	}
 
 
