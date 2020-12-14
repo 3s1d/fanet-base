@@ -78,7 +78,7 @@ void FanetFrameRemoteConfig::decode(FanetFrame *frm)
 		/* manually construct frame */
 		rfrm->setType(FanetFrame::TYPE_REMOTECONFIG);
 		rfrm->dest = frm->src;
-		rfrm->forward = false;
+		rfrm->forward = true;
 		rfrm->ackRequested = false;
 		rfrm->payloadLength = 2;
 		rfrm->payload = new uint8_t[rfrm->payloadLength];
