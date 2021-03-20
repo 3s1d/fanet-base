@@ -77,11 +77,21 @@ float Wind::getDir_misol_deg(void)
 	//	asm("nop");
 	osDelay(1);
 
+	osMutexWait(adcMutex, osWaitForever);
+	ADC_Select_CH15();
 	if(HAL_ADC_Start_IT(&hadc1) != HAL_OK)
+	{
+		HAL_ADC_Stop(&hadc1);
+		osMutexRelease(adcMutex);
 		return -1.0f;
+	}
 
 	if(HAL_ADC_PollForConversion(&hadc1, 10) != HAL_OK)
+	{
+		HAL_ADC_Stop(&hadc1);
+		osMutexRelease(adcMutex);
 		return -1.0f;
+	}
 
 	/* Get value */
 	uint32_t adc = HAL_ADC_GetValue(&hadc1);
@@ -91,6 +101,7 @@ float Wind::getDir_misol_deg(void)
 	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
 	HAL_GPIO_Init(WIND_DIR_PULL_GPIO_Port, &GPIO_InitStruct);
 	HAL_ADC_Stop_IT(&hadc1);
+	osMutexRelease(adcMutex);
 
 	/* determine error in respect to all directions */
 	float error[NELEM(wsd)];
@@ -121,11 +132,21 @@ float Wind::getDir_davis_deg(void)
 	HAL_GPIO_WritePin(WIND_PWR_GPIO_Port, WIND_PWR_Pin, GPIO_PIN_SET);
 	osDelay(1);
 
+	osMutexWait(adcMutex, osWaitForever);
+	ADC_Select_CH15();
 	if(HAL_ADC_Start_IT(&hadc1) != HAL_OK)
+	{
+		HAL_ADC_Stop(&hadc1);
+		osMutexRelease(adcMutex);
 		return -1.0f;
+	}
 
 	if(HAL_ADC_PollForConversion(&hadc1, 10) != HAL_OK)
+	{
+		HAL_ADC_Stop(&hadc1);
+		osMutexRelease(adcMutex);
 		return -1.0f;
+	}
 
 	/* Get value */
 	uint32_t adc = HAL_ADC_GetValue(&hadc1);
@@ -133,6 +154,7 @@ float Wind::getDir_davis_deg(void)
 	/* adc shut down */
 	HAL_GPIO_WritePin(WIND_PWR_GPIO_Port, WIND_PWR_Pin, GPIO_PIN_RESET);
 	HAL_ADC_Stop_IT(&hadc1);
+	osMutexRelease(adcMutex);
 
 	/* convert adc to angle */
 	return (adc*360.0f)/1024.0f;

@@ -31,7 +31,7 @@ void fanet_task(void const * argument);
 
 #define FANET_NEIGHBOR_SIZE			64
 
-#define FANET_RADIO_UPTIME			750
+#define FANET_RADIO_UPTIME			850
 
 /* service */
 #define	FANET_TYPE4_TAU_MS			40000

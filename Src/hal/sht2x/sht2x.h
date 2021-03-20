@@ -16,7 +16,7 @@ extern "C" {
 
 #include "../sht2x/si2c_master.h"
 
-#define SHT2X_FORCECONVERSION_INTERVALL_MS		(20*60*1000)			//20min
+#define SHT2X_FORCECONVERSION_INTERVALL_MS		(10*60*1000)			//10min
 
 void sht2x_task(void const * argument);
 

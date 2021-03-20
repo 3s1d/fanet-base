@@ -26,14 +26,18 @@ void sht2x_task(void const * argument)
 	while(1)
 	{
 		/* sensor conversion */
-		//note: in case of forced forced single shot, temperature will be stores for one cycle (2min)
+		//note: in case of forced single shot, temperature will be stores for one cycle (2min)
 		const uint32_t current = osKernelSysTick();
+#ifdef DIRECTBAT
+		const bool doEval = sht2x_forceConversion_next < current || power::getSoc() > 0.2f;
+#else
 		const bool doEval = sht2x_forceConversion_next < current || power::isSufficiant();
+#endif
 		sht2x.handle(doEval);
 		if(doEval)
 			sht2x_forceConversion_next = current + SHT2X_FORCECONVERSION_INTERVALL_MS;
 
-		osDelay(120000);			//wait two minutes
+		osDelay(120000+5);			//wait two minutes
 	}
 }
 

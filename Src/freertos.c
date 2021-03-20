@@ -70,7 +70,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+osMutexId adcMutex;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -125,6 +125,9 @@ void MX_FREERTOS_Init(void) {
   /* add mutexes, ... */
 	fanet_rtos();
 	wind_rtos();
+
+	osMutexDef(adcMutex);
+	adcMutex = osMutexCreate(osMutex(adcMutex));
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */

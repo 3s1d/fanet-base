@@ -92,12 +92,24 @@ void fanet_task(void const * argument)
 void *operator new(size_t size)
 {
 	void *mem = pvPortMalloc(size);
-		return mem;
+	return mem;
 }
 
 void operator delete(void *p)
 {
 	vPortFree(p);
+}
+
+void *malloc(int size)
+{
+	void *mem = pvPortMalloc(size);
+	return mem;
+}
+
+
+void free(void *alloc)
+{
+	vPortFree(alloc);
 }
 
 
@@ -166,7 +178,11 @@ void Fanet::handle(void)
 			sx1272_setArmed(true);
 			txQueueLastUsed = current;
 		}
-		else if(txQueueLastUsed + FANET_RADIO_UPTIME < current)		//750ms delay to ensure remote config can reach us
+#ifdef DIRECTBAT
+		else if(txQueueLastUsed + ((power::getSoc() > 0.5f ? 2 : 1) * FANET_RADIO_UPTIME) < current)
+#else
+		else if(txQueueLastUsed + FANET_RADIO_UPTIME < current)		//850ms delay to ensure remote config can reach us
+#endif
 		{
 			/* disabling radio chip */
 			sx1272_setArmed(false);
@@ -341,14 +357,18 @@ FanetFrame *Fanet::broadcastIntended(void)
 	/* air */
 	float temp, rh;
 	sht2x.get(&temp, &rh);
-	if(std::isnan(temp) == false)
+	if(std::isnan(temp) == false && temp > -30.0f)
 		sfrm->setTemperature(temp);
-	if(std::isnan(rh) == false)
+	if(std::isnan(rh) == false && temp > -30.0f)
 		sfrm->setHumidity(rh);
 
 	/* power */
 	if(power::psu == false)
+#ifdef DIRECTBAT
+		sfrm->setSoc(power::getSoc() * 100.0f);
+#else
 		sfrm->setSoc(power::isSufficiant() ? 100.0f : 30.0f);
+#endif
 
 	/* in case of a busy channel, ensure that frames from the tx fifo gets also a change */
 	nextServiceBroadcast = current + 1000;

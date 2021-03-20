@@ -9,6 +9,6 @@
 #define CONFIG_H_
 
 //#define SHT_DEVEL
-
+#define DIRECTBAT
 
 #endif /* CONFIG_H_ */
