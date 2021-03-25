@@ -55,7 +55,7 @@
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */     
+/* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "fanet/fanet.h"
 #include "hal/wind.h"
@@ -97,6 +97,9 @@ extern void wind_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
+/* GetIdleTaskMemory prototype (linked to static allocation support) */
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
+
 /* Hook prototypes */
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
 
@@ -110,6 +113,19 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName)
 #endif
 }
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
+static StaticTask_t xIdleTaskTCBBuffer;
+static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
+
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize )
+{
+  *ppxIdleTaskTCBBuffer = &xIdleTaskTCBBuffer;
+  *ppxIdleTaskStackBuffer = &xIdleStack[0];
+  *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+  /* place for user code */
+}
+/* USER CODE END GET_IDLE_TASK_MEMORY */
 
 /**
   * @brief  FreeRTOS initialization
@@ -173,7 +189,6 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE END Header_fanet_task */
 __weak void fanet_task(void const * argument)
 {
-
   /* USER CODE BEGIN fanet_task */
   /* Infinite loop */
   for(;;)

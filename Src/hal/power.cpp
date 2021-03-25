@@ -34,9 +34,8 @@ bool power::isSufficiant(void)
 		return true;
 
 #ifdef DIRECTBAT
-	return power::getSoc() > 0.85f;
-#endif
-
+	return power::getSoc() > 0.80f;
+#else
 	static uint32_t nextPwr = 0;
 	static bool pwrSuf = false;
 	uint32_t current = osKernelSysTick();
@@ -52,6 +51,7 @@ bool power::isSufficiant(void)
 	HAL_COMP_Stop(&hcomp2);
 
 	return pwrSuf;
+#endif
 }
 
 
@@ -98,5 +98,11 @@ float power::getSoc(void)
 	power_nextconv = osKernelSysTick() + POWER_SOCINTERVALL;
 
 	return power_soc;
+}
+
+bool power::critical(void)
+{
+	getSoc();
+	return power_vdd > 0.0f && power_vdd < 2.9f;
 }
 #endif

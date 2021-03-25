@@ -21,6 +21,7 @@ namespace power
 
 #ifdef DIRECTBAT
 	float getSoc(void);
+	bool critical(void);
 #endif
 
 }

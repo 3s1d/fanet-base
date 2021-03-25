@@ -84,6 +84,7 @@ void FanetFrameRemoteConfig::decode(FanetFrame *frm)
 		rfrm->payload = new uint8_t[rfrm->payloadLength];
 		rfrm->payload[0] = FANET_RC_ACK;
 		rfrm->payload[1] = frm->payload[0];
+		rfrm->nextTx = osKernelSysTick() + 400;		//delay by 400ms
 
 		if(fmac.transmit(rfrm) != 0)
 			delete rfrm;
@@ -178,6 +179,7 @@ void FanetFrameRemoteConfig::request(uint8_t subtype, FanetMacAddr &addr)
 	rfrm->setType(FanetFrame::TYPE_REMOTECONFIG);
 	rfrm->forward = false;
 	rfrm->ackRequested = false;
+	rfrm->nextTx = osKernelSysTick() + 400;				//delay by 400ms
 
 	if(subtype == FANET_RC_POSITION)
 	{

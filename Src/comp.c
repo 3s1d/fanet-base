@@ -1,12 +1,12 @@
 /**
   ******************************************************************************
-  * File Name          : COMP.c
-  * Description        : This file provides code for the configuration
-  *                      of the COMP instances.
+  * @file    comp.c
+  * @brief   This file provides code for the configuration
+  *          of the COMP instances.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
+  * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
   * This software component is licensed by ST under Ultimate Liberty license
@@ -30,6 +30,13 @@ COMP_HandleTypeDef hcomp2;
 void MX_COMP2_Init(void)
 {
 
+  /* USER CODE BEGIN COMP2_Init 0 */
+
+  /* USER CODE END COMP2_Init 0 */
+
+  /* USER CODE BEGIN COMP2_Init 1 */
+
+  /* USER CODE END COMP2_Init 1 */
   hcomp2.Instance = COMP2;
   hcomp2.Init.InvertingInput = COMP_INPUT_MINUS_VREFINT;
   hcomp2.Init.NonInvertingInput = COMP_INPUT_PLUS_IO2;
@@ -43,6 +50,9 @@ void MX_COMP2_Init(void)
   {
     Error_Handler();
   }
+  /* USER CODE BEGIN COMP2_Init 2 */
+
+  /* USER CODE END COMP2_Init 2 */
 
 }
 
@@ -55,10 +65,10 @@ void HAL_COMP_MspInit(COMP_HandleTypeDef* compHandle)
   /* USER CODE BEGIN COMP2_MspInit 0 */
 
   /* USER CODE END COMP2_MspInit 0 */
-  
+
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    /**COMP2 GPIO Configuration    
-    PB6     ------> COMP2_INP 
+    /**COMP2 GPIO Configuration
+    PB6     ------> COMP2_INP
     */
     GPIO_InitStruct.Pin = VCC_SUPPLY_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
@@ -79,9 +89,9 @@ void HAL_COMP_MspDeInit(COMP_HandleTypeDef* compHandle)
   /* USER CODE BEGIN COMP2_MspDeInit 0 */
 
   /* USER CODE END COMP2_MspDeInit 0 */
-  
-    /**COMP2 GPIO Configuration    
-    PB6     ------> COMP2_INP 
+
+    /**COMP2 GPIO Configuration
+    PB6     ------> COMP2_INP
     */
     HAL_GPIO_DeInit(VCC_SUPPLY_GPIO_Port, VCC_SUPPLY_Pin);
 
@@ -89,7 +99,7 @@ void HAL_COMP_MspDeInit(COMP_HandleTypeDef* compHandle)
 
   /* USER CODE END COMP2_MspDeInit 1 */
   }
-} 
+}
 
 /* USER CODE BEGIN 1 */
 

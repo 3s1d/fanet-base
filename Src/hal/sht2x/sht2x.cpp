@@ -23,6 +23,7 @@ void sht2x_task(void const * argument)
 	sht2x.init();
 	osDelay(1000);
 
+	TickType_t xLastWakeTime = xTaskGetTickCount();
 	while(1)
 	{
 		/* sensor conversion */
@@ -33,11 +34,17 @@ void sht2x_task(void const * argument)
 #else
 		const bool doEval = sht2x_forceConversion_next < current || power::isSufficiant();
 #endif
-		sht2x.handle(doEval);
-		if(doEval)
-			sht2x_forceConversion_next = current + SHT2X_FORCECONVERSION_INTERVALL_MS;
+#ifdef DIRECTBAT
+		if(power::critical() == false)
+#endif
+		{
+			sht2x.handle(doEval);
+			if(doEval)
+				sht2x_forceConversion_next = current + SHT2X_FORCECONVERSION_INTERVALL_MS;
+		}
 
-		osDelay(120000+5);			//wait two minutes
+		/* Wait for the next cycle */
+		vTaskDelayUntil(&xLastWakeTime, portTICK_PERIOD_MS * (SHT2X_FORCECONVERSION_INTERVALL_MS+5));
 	}
 }
 

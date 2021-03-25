@@ -12,6 +12,7 @@
 #include "cmsis_os.h"
 #include "adc.h"
 
+#include "../hal/power.h"
 #include "../hal/wind.h"
 #include "common.h"
 
@@ -44,7 +45,10 @@ void wind_task(void const * argument)
 	osDelay(2000);
 
   	/* Calibrate ADC */
-	HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+	//osMutexWait(adcMutex, osWaitForever);
+	//HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+	//osMutexRelease(adcMutex);
+	//-> main.c
 
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	while(1)
@@ -53,7 +57,10 @@ void wind_task(void const * argument)
 		vTaskDelayUntil(&xLastWakeTime, portTICK_PERIOD_MS * 1000);
 
 		/* handle wind stuff */
-		wind.handle();
+#ifdef DIRECTBAT
+		if(power::critical() == false)
+#endif
+			wind.handle();
 	}
 }
 

@@ -39,10 +39,6 @@ void wire_task(void const * argument)
 		/* Get the message from the queue */
 		osMessageGet(serialInt.myserial->queueID, 1000);		//-> queueID not nullptr by definition
 		serialInt.handle_rx();
-
-		/* prevent time overflow */
-		if(osKernelSysTick() > UINT32_MAX - 100000)
-			NVIC_SystemReset();
 	}
 }
 

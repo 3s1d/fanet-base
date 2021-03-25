@@ -6,6 +6,7 @@
  */
 
 #include "cmsis_os.h"
+#include "iwdg.h"
 
 #include "common.h"
 #include "minmax.h"
@@ -66,6 +67,20 @@ void fanet_task(void const * argument)
 	/* fanet loop */
 	while(1)
 	{
+		/* reset watchdog if runtime < 1d */
+		if(osKernelSysTick() < (24*3600*1000))
+			HAL_IWDG_Refresh(&hiwdg);
+
+#ifdef DIRECTBAT
+		if(power::critical())
+		{
+			/* preserve as much power as possible */
+			sx1272_setArmed(false);
+			osDelay(5000);
+			continue;
+		}
+#endif
+
 		/* Get the message from the queue */
 		osEvent event = osMessageGet(fanet_QueueID, MAC_SLOT_MS);
 		if(event.status == osEventMessage)
@@ -179,7 +194,7 @@ void Fanet::handle(void)
 			txQueueLastUsed = current;
 		}
 #ifdef DIRECTBAT
-		else if(txQueueLastUsed + ((power::getSoc() > 0.5f ? 2 : 1) * FANET_RADIO_UPTIME) < current)
+		else if(txQueueLastUsed + ((power::getSoc() > 0.45f ? 5 : 1) * FANET_RADIO_UPTIME) < current)
 #else
 		else if(txQueueLastUsed + FANET_RADIO_UPTIME < current)		//850ms delay to ensure remote config can reach us
 #endif
@@ -423,7 +438,12 @@ void Fanet::handleFrame(FanetFrame *frm)
 	/* forward? */
 	//note: do not forward already forwarded frames
 	if(fmac.forwardAble(frm) || frm->dest == fmac.addr || frm->geoForward || sx1272_get_airlimit() > 0.8f ||
-			fmac.txQueueHasFreeSlots() == false || power::isSufficiant() == false)
+			fmac.txQueueHasFreeSlots() == false ||
+#ifdef DIRECTBAT
+			power::getSoc() > 0.45f)
+#else
+			power::isSufficiant() == false)
+#endif
 		return;
 
 //	debug_printf("%02X:%04X->%02X:%04X %X: ", frm->src.manufacturer, frm->src.id, frm->dest.manufacturer, frm->dest.id, frm->type);
