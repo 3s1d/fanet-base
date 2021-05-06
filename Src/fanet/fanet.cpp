@@ -319,7 +319,11 @@ void Fanet::seenNeighbor(FanetMacAddr &addr)
 	{
 		/* too many neighbors, delete oldest member (front) */
 		if (neighbors.size() > FANET_NEIGHBOR_SIZE)
+		{
+			FanetNeighbor *front = neighbors.front();
 			neighbors.pop_front();
+			delete front;
+		}
 
 		neighbors.push_back(new FanetNeighbor(addr));
 	}
